@@ -218,3 +218,20 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project: agri-project
+*.db
+*.sqlite
+*.sqlite3
+agri-project/backend/agri.db
+agri-project/backend/.env
+agri-project/frontend/.env
+
+# Node / Vite
+node_modules/
+agri-project/frontend/dist/
+agri-project/frontend/dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
