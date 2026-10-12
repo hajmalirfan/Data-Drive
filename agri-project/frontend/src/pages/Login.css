@@ -193,6 +193,22 @@
 }
 .icon-btn:hover { background: #f1f5f9; }
 
+/* Role selector */
+.role-row .role-select {
+  border: 0;
+  outline: 0;
+  width: 100%;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  cursor: pointer;
+  padding: 2px 0;
+}
+.role-row .role-select option {
+  font-weight: 500;
+}
+
 /* Fixed alert slot prevents layout jump */
 .alert-slot {
   min-height: 0;

@@ -3,11 +3,15 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { LanguageProvider, useLanguage } from './context/LanguageContext'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import Admin from './pages/Admin'
 import LanguageSelector from './components/LanguageSelector'
 
-function Protected({ children }) {
-  const { isAuth } = useAuth()
+function Protected({ children, allowedRoles }) {
+  const { isAuth, role } = useAuth()
   if (!isAuth) return <Navigate to="/login" replace />
+  if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(role)) {
+    return <Navigate to="/dashboard" replace />
+  }
   return children
 }
 
@@ -33,6 +37,10 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
+            <Route path="/admin" element={<Protected allowedRoles={['admin']}><Admin /></Protected>} />
+            <Route path="/farmer" element={<Protected allowedRoles={['farmer', 'admin']}><Dashboard /></Protected>} />
+            <Route path="/fpo" element={<Protected allowedRoles={['fpo', 'admin']}><Dashboard /></Protected>} />
+            <Route path="/marketer" element={<Protected allowedRoles={['marketer', 'admin']}><Dashboard /></Protected>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

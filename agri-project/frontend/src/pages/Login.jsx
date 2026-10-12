@@ -10,6 +10,7 @@ export default function Login() {
   const [mode, setMode] = useState('signin') // 'signin' | 'signup'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [role, setRole] = useState('farmer') // farmer | fpo | marketer | admin
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -36,7 +37,7 @@ export default function Login() {
     setLoading(true)
     try {
       if (mode === 'signup') {
-        const data = await apiSignup(email.trim(), password)
+        const data = await apiSignup(email.trim(), password, role)
         saveAuth(data)
         setSuccess(t('created'))
         setTimeout(() => navigate('/dashboard'), 800)
@@ -149,6 +150,29 @@ export default function Login() {
                 {error && <div className="alert alert-error">{error}</div>}
                 {success && <div className="alert alert-success">{success}</div>}
               </div>
+
+              {mode === 'signup' && (
+                <div className="input-row role-row">
+                  <span className="input-ico" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+                  </span>
+                  <span className="input-divider" aria-hidden="true" />
+                  <label className="input-body">
+                    <span className="input-label">{t('role')}</span>
+                    <select
+                      className="role-select"
+                      value={role}
+                      onChange={(e) => setRole(e.target.value)}
+                      aria-label={t('role')}
+                    >
+                      <option value="farmer">{t('roleFarmer')}</option>
+                      <option value="fpo">{t('roleFpo')}</option>
+                      <option value="marketer">{t('roleMarketer')}</option>
+                      <option value="admin">{t('roleAdmin')}</option>
+                    </select>
+                  </label>
+                </div>
+              )}
 
               <button className="btn-primary" disabled={loading} type="submit">
                 {loading ? t('wait') : mode === 'signin' ? t('continue') : t('signupContinue')}
