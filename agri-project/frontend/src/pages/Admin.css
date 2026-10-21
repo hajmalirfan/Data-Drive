@@ -1,0 +1,92 @@
+.admin-page { gap: 16px; }
+.admin-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.admin-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 13px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  min-width: 0;
+}
+.admin-summary-card > span {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #eef7ed;
+  color: #2b8a4e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.admin-summary-card > div { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.admin-summary-card small {
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: #8c988f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-summary-card strong { font-size: 16px; color: #1b2e22; }
+.admin-filters {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid #edf1e9;
+  flex-wrap: wrap;
+}
+.admin-filters .ui-field { min-width: 180px; }
+.admin-count { font-size: 10px; font-weight: 700; color: #7b897f; }
+.admin-table-body { padding-top: 11px; }
+.admin-user { display: flex; align-items: center; gap: 9px; }
+.admin-avatar {
+  width: 33px;
+  height: 33px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #eaf1fb, #dbe9f7);
+  color: #35648e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9.5px;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+.admin-user > span:last-child { display: flex; flex-direction: column; line-height: 1.25; }
+.admin-user small { font-size: 9px; color: #96a198; }
+.admin-email { display: block; font-size: 10.5px; }
+.admin-sub { display: block; font-size: 9px; color: #96a198; margin-top: 1px; }
+.admin-role-select { height: 32px; font-size: 10.5px; min-width: 135px; }
+.admin-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: #8d998f;
+  padding: 0 3px;
+}
+.admin-note svg { flex: 0 0 auto; margin-top: 1px; }
+
+@media (max-width: 1120px) {
+  .admin-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .admin-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-filters .ui-field { flex: 1 1 150px; min-width: 0; }
+}
+@media (max-width: 460px) {
+  .admin-summary { grid-template-columns: minmax(0, 1fr); }
+}

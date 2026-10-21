@@ -1,0 +1,35 @@
+.lang-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.lang-select select {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  max-width: 160px;
+}
+.lang-globe { font-size: 15px; line-height: 1; }
+.lang-label { color: var(--text-muted); font-weight: 600; }
+
+/* Compact variant for tight topbars */
+.lang-select.is-compact { height: 38px; }
+.lang-select.is-compact .lang-label { display: none; }
+
+@media (max-width: 820px) {
+  .lang-label { display: none; }
+  .lang-select select { max-width: 110px; }
+}

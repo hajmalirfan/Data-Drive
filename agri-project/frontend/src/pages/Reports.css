@@ -1,0 +1,198 @@
+.reports-page { gap: 16px; }
+.reports-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.reports-stat {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+}
+.reports-stat > span {
+  width: 37px;
+  height: 37px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.reports-stat .green { background: #e8f6ec; color: #25884c; }
+.reports-stat .blue { background: #eaf1fb; color: #376c9b; }
+.reports-stat .amber { background: #fdf4df; color: #ab7918; }
+.reports-stat .red { background: #fdeeec; color: #b23b30; }
+.reports-stat > div { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.reports-stat small {
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.45px;
+  text-transform: uppercase;
+  color: #8c988f;
+}
+.reports-stat strong {
+  font-size: 16px;
+  color: #1b2e22;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.reports-stat em { font-style: normal; font-size: 9px; color: #939f96; font-weight: 600; }
+
+.reports-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.reports-bars { display: flex; flex-direction: column; gap: 11px; }
+.reports-bar-row { display: flex; align-items: center; gap: 10px; }
+.reports-bar-label { display: flex; align-items: center; gap: 6px; width: 160px; flex: 0 0 auto; min-width: 0; }
+.reports-bar-icon {
+  width: 25px;
+  height: 25px;
+  border-radius: 7px;
+  background: #eef7ed;
+  color: #2b8a4e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.reports-bar-label strong { font-size: 10.5px; color: #33473a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.reports-bar-label small { font-size: 8.5px; color: #98a39a; white-space: nowrap; }
+.reports-bar-track { flex: 1; height: 7px; border-radius: 6px; background: #edf2ea; overflow: hidden; }
+.reports-bar-track span { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, #65bd87, #248a4d); }
+.reports-bar-value { width: 62px; text-align: right; font-size: 10px; font-weight: 700; color: #4a5d50; flex: 0 0 auto; }
+
+.reports-financials { display: flex; flex-direction: column; gap: 0; }
+.reports-financials > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f3ed;
+  font-size: 10.5px;
+  color: #6f7e73;
+}
+.reports-financials > div strong { font-size: 13px; color: #22362a; }
+.reports-financials > div strong.negative { color: #ad3a30; }
+.reports-financials > div.net { border-bottom: 0; margin-top: 3px; padding-top: 9px; border-top: 1px solid #e4ece0; font-weight: 800; color: #2c6f47; }
+.reports-financials > div.net strong { color: #1a7c46; font-size: 17px; }
+.reports-financials-note {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
+  margin-top: 6px;
+  padding: 8px 9px !important;
+  border: 0 !important;
+  border-radius: 8px;
+  background: #f5f9f3;
+  font-size: 9px !important;
+  line-height: 1.5;
+  color: #839087 !important;
+}
+.reports-financials-note svg { flex: 0 0 auto; margin-top: 1px; }
+
+.reports-booking-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #edf2ea;
+}
+.reports-booking-bar span.active { background: #3d84c6; }
+.reports-booking-bar span.delivered { background: #2a9d5c; }
+.reports-booking-bar span.cancelled { background: #d19c35; }
+.reports-booking-bar span.rejected { background: #c95043; }
+.reports-booking-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 10px;
+}
+.reports-booking-legend span { display: inline-flex; align-items: center; gap: 5px; font-size: 9px; color: #7b897f; }
+.reports-booking-legend i { width: 7px; height: 7px; border-radius: 50%; }
+.reports-booking-legend i.active { background: #3d84c6; }
+.reports-booking-legend i.delivered { background: #2a9d5c; }
+.reports-booking-legend i.cancelled { background: #d19c35; }
+.reports-booking-legend i.rejected { background: #c95043; }
+.reports-booking-legend strong { color: #35483c; }
+.reports-booking-counts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 12px;
+}
+.reports-booking-counts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  background: #f8faf6;
+  border: 1px solid #eef2eb;
+}
+.reports-booking-counts span { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.35px; color: #8c988f; }
+.reports-booking-counts strong { font-size: 15px; color: #1d3124; }
+
+.reports-market-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 11px;
+}
+.reports-market-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 9px;
+  border-radius: 8px;
+  background: #f7faf5;
+  border: 1px solid #edf1e9;
+}
+.reports-market-stats small { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: #8d998f; }
+.reports-market-stats strong { font-size: 14px; color: #1d3124; }
+.reports-price-table .ui-table th, .reports-price-table .ui-table td { padding: 8px 9px; font-size: 10px; }
+
+.reports-footnote {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: #8d998f;
+  padding: 0 3px;
+}
+.reports-footnote svg { flex: 0 0 auto; margin-top: 1px; }
+.reports-loading { display: flex; flex-direction: column; gap: 14px; }
+.reports-loading-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+
+@media (max-width: 1000px) {
+  .reports-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  .reports-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reports-loading-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .reports-stats { grid-template-columns: minmax(0, 1fr); }
+  .reports-bar-label { width: 112px; }
+  .reports-bar-value { width: 54px; }
+  .reports-market-stats { grid-template-columns: minmax(0, 1fr); }
+  .reports-booking-counts { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media print {
+  .sa-sidebar, .sa-topbar, .sa-footer, .reports-toolbar, .sa-sidebar-overlay { display: none !important; }
+  .sa-shell, .sa-main, .sa-content { display: block !important; background: #fff !important; padding: 0 !important; }
+  .ui-card { box-shadow: none; break-inside: avoid; }
+  .reports-page { gap: 12px; }
+}

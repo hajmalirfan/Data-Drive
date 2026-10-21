@@ -1,0 +1,85 @@
+.crops-page { gap: 16px; }
+
+.crops-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.crops-stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 14px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+}
+.crops-stat > span {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #eef7ed;
+  color: #2b8a4e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.crops-stat > div { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.crops-stat small {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.45px;
+  text-transform: uppercase;
+  color: #8c988f;
+}
+.crops-stat strong {
+  font-size: 16px;
+  color: #1b2e22;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.crops-stat em { font-style: normal; font-size: 9px; color: #8d998f; font-weight: 600; margin-left: 2px; }
+
+.crops-table-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 17px 0;
+  flex-wrap: wrap;
+}
+.crops-table-head .ui-filters { gap: 8px; }
+.crops-table-head .ui-select, .crops-table-head .ui-input { min-width: 150px; }
+.crops-table-body { padding-top: 11px; }
+
+.crops-name { display: flex; align-items: center; gap: 9px; }
+.crops-name > span:first-child {
+  width: 29px;
+  height: 29px;
+  border-radius: 8px;
+  background: #eef7ed;
+  color: #2b8a4e;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+.crops-name > span:last-child { display: flex; flex-direction: column; line-height: 1.25; }
+.crops-name small { font-size: 9.5px; color: #96a198; }
+.crops-delete:hover { background: #fdf0ee; color: #b0362d; border-color: #f2d7d3; }
+.crops-page .ui-icon-btn { width: 29px; height: 29px; border-radius: 7px; }
+
+@media (max-width: 900px) {
+  .crops-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .crops-summary { grid-template-columns: minmax(0, 1fr); }
+  .crops-table-head { padding: 14px 14px 0; }
+  .crops-table-head .ui-filters { width: 100%; }
+  .crops-table-head .ui-field { flex: 1 1 130px; }
+  .crops-table-head .ui-select, .crops-table-head .ui-input { min-width: 0; }
+}
