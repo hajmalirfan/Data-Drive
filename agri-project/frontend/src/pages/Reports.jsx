@@ -302,12 +302,6 @@ export default function Reports() {
           )}
         </div>
       </section>
-
-      <p className="reports-footnote">
-        <Icon name="info" size={13} />
-        Report values are calculated from the live database for the signed-in account. Seeded demo prices are
-        labelled with their source and observation time.
-      </p>
     </div>
   )
 }

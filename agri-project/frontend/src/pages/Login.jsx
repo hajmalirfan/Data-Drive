@@ -16,13 +16,6 @@ const ROLE_CHOICES = [
   { value: 'buyer', labelKey: 'login.roleBuyer', hintKey: 'login.roleBuyerHint', icon: 'markets' },
 ]
 
-const DEMOS = [
-  { role: 'farmer', labelKey: 'role.farmer', icon: 'crops', identifier: 'farmer@smartag.in', password: 'Farmer123' },
-  { role: 'truck_operator', labelKey: 'login.demoOperator', icon: 'truck', identifier: 'operator@smartag.in', password: 'Operator123' },
-  { role: 'fpo', labelKey: 'role.fpo', icon: 'profile', identifier: 'fpo@smartag.in', password: 'Fpo12345' },
-  { role: 'market_manager', labelKey: 'login.demoManager', icon: 'prices', identifier: 'manager@smartag.in', password: 'Manager123' },
-]
-
 function AuthArt() {
   return (
     <svg viewBox="0 0 520 300" className="auth-art" aria-hidden="true">
@@ -91,14 +84,6 @@ export default function Login() {
     setMode(next)
     setError('')
     setSuccess('')
-  }
-
-  const fillDemo = (demo) => {
-    setMode('signin')
-    setIdentifier(demo.identifier)
-    setPassword(demo.password)
-    setError('')
-    setSuccess(t('login.demoFilled', [t(demo.labelKey)]))
   }
 
   const handleSignin = async (event) => {
@@ -288,30 +273,10 @@ export default function Login() {
                 {!loading && <Icon name="arrowRight" size={16} />}
               </button>
 
-              <div className="auth-divider"><span>{t('login.orLoginAs')}</span></div>
-              <div className="auth-demos">
-                {DEMOS.map((demo) => (
-                  <button
-                    key={demo.role}
-                    type="button"
-                    className="auth-demo"
-                    onClick={() => fillDemo(demo)}
-                    title={`${demo.identifier} / ${demo.password}`}
-                  >
-                    <Icon name={demo.icon} size={15} />
-                    {t(demo.labelKey)}
-                  </button>
-                ))}
-              </div>
-
-              <p className="auth-note">
-                {t('login.demoNote')}
-              </p>
-
-              <p className="auth-switch">
+              <div className="auth-switch">
                 {t('login.newHere')}{' '}
                 <button type="button" onClick={() => switchMode('signup')}>{t('login.createAccountLink')}</button>
-              </p>
+              </div>
             </form>
           ) : (
             <form className="auth-form" onSubmit={handleSignup} noValidate>

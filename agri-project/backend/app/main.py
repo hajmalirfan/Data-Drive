@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import Base, engine
-from app.core.seed import seed_demo_data
 from app.models import chat, operations, user  # noqa: F401 - register models
 from app.routers import auth, bookings, chat as chat_router, crops, dashboard, markets, trucks
 
@@ -54,7 +53,6 @@ def migrate_schema():
 migrate_schema()
 Base.metadata.create_all(bind=engine)
 migrate_schema()
-seed_demo_data()
 
 app = FastAPI(title=settings.APP_NAME)
 

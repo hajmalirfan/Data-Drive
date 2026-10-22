@@ -262,12 +262,6 @@ export default function MarketPrices() {
         </div>
       </div>
 
-      <p className="prices-footnote">
-        <Icon name="info" size={13} />
-        Demo prices are stored rows labelled “SmartAg demo seed · manager-entered”. Prices published
-        here are recorded against your manager account with a timestamp.
-      </p>
-
       {modalOpen && (
         <Modal
           title={t('prices.publishTitle')}
