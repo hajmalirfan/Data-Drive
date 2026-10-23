@@ -46,8 +46,17 @@ OPERATOR_STATUSES = {"accepted", "rejected", "assigned", "picked_up", "in_transi
 FARMER_STATUSES = {"cancelled"}
 
 
-def booking_out(booking: Booking) -> BookingOut:
+def booking_out(booking: Booking, user: User) -> BookingOut:
     operator = booking.truck.operator if booking.truck else None
+    can_view_location = (
+        booking.location_consent
+        and booking.status in {"picked_up", "in_transit"}
+        and (
+            user.role == "admin"
+            or booking.farmer_id == user.id
+            or (booking.truck and booking.truck.operator_id == user.id)
+        )
+    )
     return BookingOut(
         id=booking.id,
         farmer_id=booking.farmer_id,
@@ -78,10 +87,10 @@ def booking_out(booking: Booking) -> BookingOut:
         actual_price_per_kg=booking.actual_price_per_kg,
         actual_expenses=booking.actual_expenses,
         delivered_at=booking.delivered_at,
-        location_consent=booking.location_consent,
-        last_lat=booking.last_lat,
-        last_lng=booking.last_lng,
-        last_reported_at=booking.last_reported_at,
+        location_consent=can_view_location,
+        last_lat=booking.last_lat if can_view_location else None,
+        last_lng=booking.last_lng if can_view_location else None,
+        last_reported_at=booking.last_reported_at if can_view_location else None,
         created_at=booking.created_at,
     )
 
@@ -132,7 +141,7 @@ def list_bookings(
     if status_filter:
         query = query.filter(Booking.status == status_filter)
     return [
-        booking_out(booking)
+        booking_out(booking, user)
         for booking in query.order_by(Booking.created_at.desc(), Booking.id.desc()).all()
     ]
 
@@ -143,7 +152,7 @@ def get_booking(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return booking_out(_get_booking(db, booking_id, user))
+    return booking_out(_get_booking(db, booking_id, user), user)
 
 
 @router.post("", response_model=BookingOut, status_code=201)
@@ -234,7 +243,7 @@ def create_booking(
     )
     db.commit()
     db.refresh(booking)
-    return booking_out(booking)
+    return booking_out(booking, user)
 
 
 @router.patch("/{booking_id}/status", response_model=BookingOut)
@@ -259,7 +268,7 @@ def update_booking_status(
     is_operator = (
         booking.truck and booking.truck.operator_id == user.id
     ) or user.role == "admin"
-    is_farmer = booking.farmer_id == user.id and user.role != "admin"
+    is_farmer = booking.farmer_id == user.id and not is_operator
     if is_farmer and new_status not in FARMER_STATUSES:
         raise HTTPException(status_code=403, detail="Farmers can only cancel bookings")
     if not is_farmer and not is_operator:
@@ -274,10 +283,14 @@ def update_booking_status(
         truck.available_capacity_kg -= booking.quantity_kg
         if truck.available_capacity_kg <= 0:
             truck.status = "reserved"
-    elif new_status in {"picked_up", "in_transit"} and truck:
+    elif new_status in {"picked_up", "in_transit"} and truck and truck.status != "inactive":
         truck.status = "on_trip"
     elif new_status == "delivered":
         booking.delivered_at = datetime.utcnow()
+        booking.location_consent = False
+        booking.last_lat = None
+        booking.last_lng = None
+        booking.last_reported_at = None
         if truck:
             _restore_truck_capacity(truck, booking.quantity_kg)
     elif new_status in {"rejected", "cancelled"} and previous in {
@@ -320,7 +333,7 @@ def update_booking_status(
 
     db.commit()
     db.refresh(booking)
-    return booking_out(booking)
+    return booking_out(booking, user)
 
 
 @router.patch("/{booking_id}/delivery", response_model=BookingOut)
@@ -342,7 +355,7 @@ def record_delivery(
     booking.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(booking)
-    return booking_out(booking)
+    return booking_out(booking, user)
 
 
 @router.patch("/{booking_id}/location", response_model=BookingOut)
@@ -358,16 +371,26 @@ def update_location(
     if booking.status not in ACTIVE_STATUSES:
         raise HTTPException(status_code=400, detail="Trip is not active")
 
+    if data.consent and booking.status not in {"picked_up", "in_transit"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Location sharing is available after the trip has started",
+        )
+    if data.consent and (data.lat is None or data.lng is None):
+        raise HTTPException(
+            status_code=400,
+            detail="Latitude and longitude are required to share location",
+        )
+
     booking.location_consent = data.consent
     if data.consent:
         booking.last_lat = data.lat
         booking.last_lng = data.lng
         booking.last_reported_at = datetime.utcnow()
-        if booking.truck:
-            booking.truck.last_lat = data.lat
-            booking.truck.last_lng = data.lng
-            booking.truck.last_location = data.location.strip()
-            booking.truck.last_reported_at = datetime.utcnow()
+    else:
+        booking.last_lat = None
+        booking.last_lng = None
+        booking.last_reported_at = None
     db.commit()
     db.refresh(booking)
-    return booking_out(booking)
+    return booking_out(booking, user)

@@ -132,8 +132,11 @@ def dashboard(
         "markets": markets_out,
         "comparison": comparison,
         "prices": prices,
-        "trucks": [truck_out(truck) for truck in trucks],
-        "bookings": [booking_out(booking) for booking in active_bookings[:5]],
+        "trucks": [
+            truck_out(truck, user.role == "admin" or truck.operator_id == user.id)
+            for truck in trucks
+        ],
+        "bookings": [booking_out(booking, user) for booking in active_bookings[:5]],
         "notifications": [NotificationOut.model_validate(item) for item in notifications],
         "assumptions": comparison.assumptions if comparison else [],
     }
@@ -202,7 +205,7 @@ def reports_summary(
             "stale_prices": len([price for price in prices if price.is_stale]),
             "prices": prices,
         },
-        "recent_bookings": [booking_out(booking) for booking in bookings[:5]],
+        "recent_bookings": [booking_out(booking, user) for booking in bookings[:5]],
     }
 
 

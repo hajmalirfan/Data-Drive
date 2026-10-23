@@ -28,7 +28,8 @@ const nextPickup = () => {
 
 export default function Trucks() {
   const { t, statusLabel, roleLabel } = useLanguage()
-  const { isTruckOperator, isAdmin, user } = useAuth()
+  const { isTruckOperator, isAdmin, isFarmer, isMarketer, user } = useAuth()
+  const canBookTrucks = isFarmer || isMarketer || isAdmin
   const navigate = useNavigate()
   const [tab, setTab] = useState(isTruckOperator ? 'mine' : 'market')
   const [trucks, setTrucks] = useState([])
@@ -87,9 +88,13 @@ export default function Trucks() {
   }
 
   useEffect(() => {
+    if (isTruckOperator && tab !== 'mine') {
+      setTab('mine')
+      return
+    }
     if (tab === 'market') loadMarket()
     else loadMine()
-  }, [tab]) // eslint-disable-line
+  }, [tab, isTruckOperator]) // eslint-disable-line
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -109,6 +114,7 @@ export default function Trucks() {
     : null
 
   const openBooking = (truck) => {
+    if (!canBookTrucks) return
     const crop = crops[0]
     const market = markets[0]
     setSelectedTruck(truck)
@@ -139,7 +145,7 @@ export default function Trucks() {
   const submitBooking = async (event) => {
     event.preventDefault()
     setBookingError('')
-    if (!selectedTruck) return
+    if (!canBookTrucks || !selectedTruck) return
     if (!booking.market_id) { setBookingError(t('trucks.errMarket')); return }
     if (!Number(booking.quantity_kg) || Number(booking.quantity_kg) <= 0) { setBookingError(t('trucks.errQuantity')); return }
     if (Number(booking.quantity_kg) > Number(selectedTruck.available_capacity_kg)) {
@@ -237,10 +243,12 @@ export default function Trucks() {
         <div className="ui-toolbar-actions">
           {isTruckOperator || isAdmin ? (
             <>
-              <div className="trucks-tabs">
-                <button type="button" className={tab === 'market' ? 'active' : ''} onClick={() => setTab('market')}>{t('trucks.marketplace')}</button>
-                <button type="button" className={tab === 'mine' ? 'active' : ''} onClick={() => setTab('mine')}>{t('trucks.myTrucks')}</button>
-              </div>
+              {isAdmin && (
+                <div className="trucks-tabs">
+                  <button type="button" className={tab === 'market' ? 'active' : ''} onClick={() => setTab('market')}>{t('trucks.marketplace')}</button>
+                  <button type="button" className={tab === 'mine' ? 'active' : ''} onClick={() => setTab('mine')}>{t('trucks.myTrucks')}</button>
+                </div>
+              )}
               <button type="button" className="ui-btn ui-btn-primary" onClick={() => { setTruckError(''); setTruckModal(true) }}>
                 <Icon name="plus" size={15} /> Add truck
               </button>
@@ -336,9 +344,11 @@ export default function Trucks() {
                       <strong>{inr(truck.base_fare)}</strong>
                       <small>base + ₹{Number(truck.price_per_km).toFixed(0)}/km</small>
                     </div>
-                    <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={() => openBooking(truck)}>
-                      Book truck <Icon name="arrowRight" size={13} />
-                    </button>
+                    {canBookTrucks && (
+                      <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={() => openBooking(truck)}>
+                        Book truck <Icon name="arrowRight" size={13} />
+                      </button>
+                    )}
                   </div>
                 </article>
               ))}

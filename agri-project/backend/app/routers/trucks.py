@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/trucks", tags=["trucks"])
 TRUCK_STATUSES = {"available", "reserved", "on_trip", "maintenance", "inactive"}
 
 
-def truck_out(truck: Truck) -> TruckOut:
+def truck_out(truck: Truck, include_gps: bool = False) -> TruckOut:
     return TruckOut(
         id=truck.id,
         vehicle_number=truck.vehicle_number,
@@ -31,9 +31,9 @@ def truck_out(truck: Truck) -> TruckOut:
         operator_phone=(truck.operator.phone or "") if truck.operator else "",
         operator_location=(truck.operator.location or "") if truck.operator else "",
         last_location=truck.last_location,
-        last_lat=truck.last_lat,
-        last_lng=truck.last_lng,
-        last_reported_at=truck.last_reported_at,
+        last_lat=truck.last_lat if include_gps else None,
+        last_lng=truck.last_lng if include_gps else None,
+        last_reported_at=truck.last_reported_at if include_gps else None,
     )
 
 
@@ -70,19 +70,22 @@ def list_trucks(
             | Truck.route_from.ilike(like)
             | Truck.route_to.ilike(like)
         )
-    return [truck_out(truck) for truck in query.order_by(Truck.vehicle_number.asc()).all()]
+    return [
+        truck_out(truck, user.role == "admin" or truck.operator_id == user.id)
+        for truck in query.order_by(Truck.vehicle_number.asc()).all()
+    ]
 
 
 @router.get("/{truck_id}", response_model=TruckOut)
 def get_truck(
     truck_id: int,
     db: Session = Depends(get_db),
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
     truck = db.query(Truck).filter(Truck.id == truck_id).first()
     if not truck:
         raise HTTPException(status_code=404, detail="Truck not found")
-    return truck_out(truck)
+    return truck_out(truck, user.role == "admin" or truck.operator_id == user.id)
 
 
 @router.post("", response_model=TruckOut, status_code=201)
@@ -119,7 +122,7 @@ def create_truck(
     db.add(truck)
     db.commit()
     db.refresh(truck)
-    return truck_out(truck)
+    return truck_out(truck, True)
 
 
 @router.delete("/{truck_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -160,4 +163,4 @@ def update_truck(
         setattr(truck, field, value)
     db.commit()
     db.refresh(truck)
-    return truck_out(truck)
+    return truck_out(truck, True)

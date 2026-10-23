@@ -65,33 +65,11 @@
 .trk-item .ui-badge { font-size: 7.5px; min-height: 18px; padding: 1px 6px; flex: 0 0 auto; }
 
 .trk-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.trk-map { position: relative; height: 360px; border-radius: 14px; overflow: hidden; border: 1px solid #e2ecdc; background: radial-gradient(90% 80% at 18% 18%, #f4f9ee 0%, transparent 60%), linear-gradient(150deg, #e8f2e0, #f6faf1 65%, #ecf4e5); }
-.trk-map::before { content: ""; position: absolute; width: 220px; height: 220px; border-radius: 50%; background: #d8ebcf; left: -70px; bottom: -90px; opacity: 0.85; }
-.trk-road { position: absolute; height: 8px; border-radius: 10px; background: #fff; opacity: 0.82; box-shadow: 0 0 0 1px rgba(201, 219, 193, 0.7); }
-.trk-road-a { width: 92%; left: 4%; top: 44%; transform: rotate(-7deg); }
-.trk-road-b { width: 76%; left: 12%; top: 9%; transform: rotate(63deg); opacity: 0.62; }
-.trk-river { position: absolute; width: 140%; height: 19px; left: -20%; bottom: 16%; background: #c4e2e7; border-radius: 60% 45% 55% 40%; transform: rotate(3deg); opacity: 0.85; }
-.trk-market-pin { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; z-index: 3; }
-.trk-market-dot { width: 21px; height: 21px; border-radius: 50%; background: #fff; border: 2px solid #8fb697; color: #659473; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(30, 65, 43, 0.13); }
-.trk-market-pin.destination { z-index: 4; }
-.trk-market-pin.destination .trk-market-dot { width: 27px; height: 27px; background: #218a4d; border-color: #fff; color: #fff; box-shadow: 0 0 0 5px rgba(33, 138, 77, 0.16), 0 5px 12px rgba(19, 74, 41, 0.22); }
-.trk-market-label { display: flex; flex-direction: column; align-items: center; margin-top: 2px; padding: 2px 5px; border-radius: 5px; background: rgba(255, 255, 255, 0.92); line-height: 1.15; white-space: nowrap; }
-.trk-market-label strong { font-size: 7.5px; color: #4a5f50; font-weight: 800; }
-.trk-market-label small { font-size: 6.5px; color: #2a8c51; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px; }
-.trk-market-pin.destination .trk-market-label { background: #1d7c46; }
-.trk-market-pin.destination .trk-market-label strong { color: #fff; }
-.trk-market-pin.destination .trk-market-label small { color: #c9e8d4; }
-.trk-truck-pin { position: absolute; transform: translate(-50%, -50%); z-index: 6; display: flex; flex-direction: column; align-items: center; }
-.trk-truck-dot { width: 31px; height: 31px; border-radius: 50%; background: #f2b23e; border: 2.5px solid #fff; color: #5f430d; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(86, 60, 10, 0.26); }
-.trk-truck-pulse { position: absolute; width: 48px; height: 48px; border-radius: 50%; background: rgba(242, 178, 62, 0.25); animation: trk-pulse 2s ease-out infinite; }
-@keyframes trk-pulse { 0% { transform: scale(0.7); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
-.trk-truck-label { margin-top: 2px; padding: 2px 6px; border-radius: 5px; background: #fff; font-size: 7px; font-weight: 800; color: #7a5a16; text-transform: uppercase; letter-spacing: 0.3px; }
-.trk-no-location { position: absolute; left: 12px; top: 12px; display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border-radius: 7px; background: rgba(255, 255, 255, 0.9); font-size: 8.5px; font-weight: 700; color: #7c897f; }
-.trk-legend { position: absolute; right: 10px; bottom: 9px; display: flex; gap: 10px; padding: 5px 8px; border-radius: 7px; background: rgba(255, 255, 255, 0.9); font-size: 7.5px; font-weight: 700; color: #718075; }
-.trk-legend span { display: inline-flex; align-items: center; gap: 3px; }
-.trk-legend .dot { width: 6px; height: 6px; border-radius: 50%; background: #a3b4a7; }
-.trk-legend .dot.dest { background: #218a4d; }
-.trk-legend .dot.truck { background: #f2b23e; }
+.trk-map { position: relative; width: 100%; height: 360px; border-radius: 14px; overflow: hidden; border: 1px solid #e2ecdc; z-index: 0; }
+.trk-map-loading { display: grid; place-items: center; color: #718075; background: #f5f9f2; }
+.trk-truck-marker { border: 0; background: transparent; }
+.trk-truck-marker span { display: flex; width: 36px; height: 36px; align-items: center; justify-content: center; border: 2px solid #fff; border-radius: 50%; background: #f2b23e; box-shadow: 0 3px 10px rgba(30, 65, 43, 0.3); font-size: 20px; }
+.trk-map-status { position: absolute; z-index: 500; top: 12px; left: 12px; display: inline-flex; align-items: center; gap: 5px; padding: 6px 9px; border-radius: 7px; background: rgba(255, 255, 255, 0.94); font-size: 9px; font-weight: 700; color: #718075; }
 
 .trk-detail-body { display: flex; flex-direction: column; gap: 15px; }
 .trk-timeline { display: flex; align-items: flex-start; gap: 0; padding: 4px 0 2px; overflow-x: auto; }
@@ -116,6 +94,7 @@
 .trk-share-head strong { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #35483c; }
 .trk-share-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .trk-share-wide { grid-column: span 2; }
+.trk-gps-help { font-size: 9.5px; line-height: 1.5; color: #718075; }
 .trk-consent { display: flex; align-items: flex-start; gap: 6px; font-size: 9.5px; color: #718075; font-weight: 600; cursor: pointer; }
 .trk-consent input { width: 14px; height: 14px; accent-color: #1f8a4c; margin: 1px 0 0; }
 .trk-share-actions { display: flex; justify-content: flex-end; }

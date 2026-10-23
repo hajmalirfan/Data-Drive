@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Icon from '../components/Icons'
+const TripMap = lazy(() => import('../components/TripMap'))
 import {
   getBookings,
   getMarkets,
@@ -37,84 +38,8 @@ const NEXT = {
   in_transit: 'delivered',
 }
 
-function TripMap({ markets, booking, market }) {
-  const { t } = useLanguage()
-  const points = useMemo(() => {
-    if (!markets.length) return []
-    const lats = markets.map((item) => Number(item.latitude) || 0)
-    const lngs = markets.map((item) => Number(item.longitude) || 0)
-    if (booking?.last_lat !== null && booking?.last_lat !== undefined) lats.push(Number(booking.last_lat))
-    if (booking?.last_lng !== null && booking?.last_lng !== undefined) lngs.push(Number(booking.last_lng))
-    const minLat = Math.min(...lats)
-    const maxLat = Math.max(...lats)
-    const minLng = Math.min(...lngs)
-    const maxLng = Math.max(...lngs)
-    const latSpan = maxLat - minLat || 1
-    const lngSpan = maxLng - minLng || 1
-    return markets.map((item) => ({
-      ...item,
-      x: 12 + ((Number(item.longitude) - minLng) / lngSpan) * 76,
-      y: 84 - ((Number(item.latitude) - minLat) / latSpan) * 68,
-      destination: market && item.id === market.id,
-    }))
-  }, [markets, market, booking?.last_lat, booking?.last_lng])
-
-  const truckPoint = useMemo(() => {
-    if (!booking || booking.last_lat === null || booking.last_lat === undefined) return null
-    if (booking.last_lng === null || booking.last_lng === undefined) return null
-    const lats = markets.map((item) => Number(item.latitude) || 0)
-    const lngs = markets.map((item) => Number(item.longitude) || 0)
-    lats.push(Number(booking.last_lat))
-    lngs.push(Number(booking.last_lng))
-    const minLat = Math.min(...lats)
-    const maxLat = Math.max(...lats)
-    const minLng = Math.min(...lngs)
-    const maxLng = Math.max(...lngs)
-    return {
-      x: 12 + ((Number(booking.last_lng) - minLng) / (maxLng - minLng || 1)) * 76,
-      y: 84 - ((Number(booking.last_lat) - minLat) / (maxLat - minLat || 1)) * 68,
-    }
-  }, [markets, booking])
-
-  return (
-    <div className="trk-map">
-      <span className="trk-road trk-road-a" />
-      <span className="trk-road trk-road-b" />
-      <span className="trk-river" />
-      {points.map((item) => (
-        <span
-          key={item.id}
-          className={`trk-market-pin ${item.destination ? 'destination' : ''}`}
-          style={{ left: `${item.x}%`, top: `${item.y}%` }}
-          title={item.name}
-        >
-          <span className="trk-market-dot"><Icon name="markets" size={12} /></span>
-          <span className="trk-market-label">
-            <strong>{item.name}</strong>
-            {item.destination && <small>{t('common.destination')}</small>}
-          </span>
-        </span>
-      ))}
-      {truckPoint ? (
-        <span className="trk-truck-pin" style={{ left: `${truckPoint.x}%`, top: `${truckPoint.y}%` }} title={t('tracking.lastReportedLocation')}>
-          <span className="trk-truck-pulse" />
-          <span className="trk-truck-dot"><Icon name="truck" size={14} /></span>
-          <span className="trk-truck-label">{t('tracking.lastReported')}</span>
-        </span>
-      ) : (
-        <span className="trk-no-location"><Icon name="info" size={12} />{t('tracking.noLocation')}</span>
-      )}
-      <span className="trk-legend">
-        <span><i className="dot dest" />{t('common.destination')}</span>
-        <span><i className="dot muted" />{t('dash.otherMandis')}</span>
-        <span><i className="dot truck" />{t('common.truck')}</span>
-      </span>
-    </div>
-  )
-}
-
 export default function Tracking() {
-  const { t, statusLabel, roleLabel } = useLanguage()
+  const { t, statusLabel } = useLanguage()
   const { isAdmin, isTruckOperator } = useAuth()
   const [bookings, setBookings] = useState([])
   const [markets, setMarkets] = useState([])
@@ -123,9 +48,13 @@ export default function Tracking() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
-  const [loc, setLoc] = useState({ lat: '', lng: '', location: '', consent: true })
+  const [loc, setLoc] = useState({ lat: '', lng: '', location: '', consent: false })
   const [locError, setLocError] = useState('')
   const [showClosed, setShowClosed] = useState(false)
+  const [gpsSharing, setGpsSharing] = useState(false)
+  const gpsWatchId = useRef(null)
+  const gpsRequestInFlight = useRef(false)
+  const lastGpsRequestAt = useRef(0)
 
   const canShare = isAdmin || isTruckOperator
 
@@ -147,7 +76,11 @@ export default function Tracking() {
 
   useEffect(() => {
     load()
-    const timer = setInterval(() => load(true), 20000)
+    const timer = setInterval(() => {
+      getBookings()
+        .then(setBookings)
+        .catch((err) => setError(err.response?.data?.detail || t('tracking.loadError')))
+    }, 5000)
     return () => clearInterval(timer)
   }, []) // eslint-disable-line
 
@@ -156,6 +89,27 @@ export default function Tracking() {
   const visible = showClosed ? bookings : bookings.filter((item) => ACTIVE.has(item.status) || item.status === 'delivered')
   const statusIndex = selected ? STEPS.findIndex(([value]) => value === selected.status) : -1
   const isActive = selected ? ACTIVE.has(selected.status) : false
+  useEffect(() => {
+    setLoc((prev) => ({ ...prev, consent: Boolean(selected?.location_consent) }))
+  }, [selectedId, selected?.location_consent])
+
+  const canLiveShare = (
+    canShare && selected && ['picked_up', 'in_transit'].includes(selected.status)
+  )
+
+  useEffect(() => {
+    setGpsSharing(false)
+    if (!canLiveShare && gpsWatchId.current !== null) {
+      navigator.geolocation?.clearWatch(gpsWatchId.current)
+      gpsWatchId.current = null
+    }
+    return () => {
+      if (gpsWatchId.current !== null) {
+        navigator.geolocation?.clearWatch(gpsWatchId.current)
+        gpsWatchId.current = null
+      }
+    }
+  }, [selectedId, Boolean(canLiveShare)])
 
   const advance = async () => {
     if (!selected) return
@@ -195,7 +149,10 @@ export default function Tracking() {
     event.preventDefault()
     setLocError('')
     if (!selected) return
-    if (loc.lat === '' || loc.lng === '') { setLocError(t('tracking.errCoords')); return }
+    if (loc.consent && (loc.lat === '' || loc.lng === '')) {
+      setLocError(t('tracking.errCoords'))
+      return
+    }
     setBusy(true)
     try {
       const updated = await updateBookingLocation(selected.id, {
@@ -210,6 +167,106 @@ export default function Tracking() {
       setLocError(err.response?.data?.detail || t('tracking.locationError'))
     } finally {
       setBusy(false)
+    }
+  }
+
+  const startGpsSharing = (consentGiven = loc.consent) => {
+    setLocError('')
+    if (!selected || !canLiveShare) {
+      setLocError(t('tracking.startAfterTrip'))
+      return
+    }
+    if (!consentGiven) {
+      setLocError(t('tracking.consentRequired'))
+      return
+    }
+    if (!navigator.geolocation) {
+      setLocError(t('tracking.geoUnavailable'))
+      return
+    }
+    if (gpsWatchId.current !== null) return
+
+    gpsWatchId.current = navigator.geolocation.watchPosition(
+      async (position) => {
+        const now = Date.now()
+        if (gpsRequestInFlight.current || now - lastGpsRequestAt.current < 5000) return
+        gpsRequestInFlight.current = true
+        lastGpsRequestAt.current = now
+        const { latitude, longitude } = position.coords
+        try {
+          const updated = await updateBookingLocation(selected.id, {
+            lat: latitude,
+            lng: longitude,
+            location: t('tracking.liveGps'),
+            consent: true,
+          })
+          setBookings((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+          setLoc((prev) => ({
+            ...prev,
+            lat: latitude.toFixed(6),
+            lng: longitude.toFixed(6),
+            location: t('tracking.liveGps'),
+          }))
+          setLocError('')
+        } catch (err) {
+          setLocError(err.response?.data?.detail || t('tracking.locationError'))
+          if ([400, 401, 403].includes(err.response?.status)) {
+            navigator.geolocation.clearWatch(gpsWatchId.current)
+            gpsWatchId.current = null
+            setGpsSharing(false)
+          }
+        } finally {
+          gpsRequestInFlight.current = false
+        }
+      },
+      (geoError) => {
+        setLocError(
+          geoError.code === geoError.PERMISSION_DENIED
+            ? t('tracking.geoPermissionDenied')
+            : t('tracking.geoError')
+        )
+        if (gpsWatchId.current !== null) {
+          navigator.geolocation.clearWatch(gpsWatchId.current)
+          gpsWatchId.current = null
+        }
+        setGpsSharing(false)
+      },
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+    )
+    setGpsSharing(true)
+  }
+
+  const stopGpsSharing = async () => {
+    if (gpsWatchId.current !== null) {
+      navigator.geolocation?.clearWatch(gpsWatchId.current)
+      gpsWatchId.current = null
+    }
+    setGpsSharing(false)
+    if (!selected || !canLiveShare) return
+
+    setBusy(true)
+    setLocError('')
+    try {
+      const updated = await updateBookingLocation(selected.id, {
+        lat: null,
+        lng: null,
+        consent: false,
+      })
+      setBookings((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+      setLoc((prev) => ({ ...prev, lat: '', lng: '', consent: false }))
+    } catch (err) {
+      setLocError(err.response?.data?.detail || t('tracking.locationError'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const changeLocationConsent = (consent) => {
+    setLoc((prev) => ({ ...prev, consent }))
+    if (consent) {
+      startGpsSharing(true)
+    } else {
+      stopGpsSharing()
     }
   }
 
@@ -253,7 +310,7 @@ export default function Tracking() {
                 <h3><Icon name="tracking" size={16} />{t('tracking.trips')}</h3>
                 <p>{visible.length} {showClosed ? t('tracking.total') : t('tracking.activeCompleted')}</p>
               </div>
-              <span className="trk-live"><i />{t('tracking.autoRefresh')}</span>
+              <span className="trk-live"><i />{t('tracking.liveUpdates')}</span>
             </div>
             <div className="trk-list">
               {visible.map((booking) => (
@@ -291,7 +348,9 @@ export default function Tracking() {
                     </span>
                   </div>
                   <div className="ui-card-body">
-                    <TripMap markets={markets} booking={selected} market={market} />
+                    <Suspense fallback={<div className="trk-map trk-map-loading">{t('tracking.loading')}</div>}>
+                      <TripMap booking={selected} market={market} />
+                    </Suspense>
                   </div>
                 </div>
 
@@ -330,15 +389,31 @@ export default function Tracking() {
                       <div><span>{t('tracking.lastReported')}</span><strong>{when(selected.last_reported_at, isTruckOperator)}</strong></div>
                     </div>
 
-                    {isActive && canShare && (
+                    {canLiveShare && canShare && (
                       <form className="trk-share" onSubmit={shareLocation}>
                         <div className="trk-share-head">
                           <strong><Icon name="tracking" size={14} />{t('tracking.shareLocation')}</strong>
-                          <button type="button" className="ui-btn ui-btn-outline ui-btn-sm" onClick={useMyLocation}>
-                            Use my location
-                          </button>
+                          {canLiveShare && (
+                            <div className="trk-share-actions">
+                              {gpsSharing ? (
+                                <button type="button" className="ui-btn ui-btn-outline ui-btn-sm" onClick={stopGpsSharing} disabled={busy}>
+                                  {t('tracking.pauseGps')}
+                                </button>
+                              ) : (
+                                <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={startGpsSharing} disabled={busy}>
+                                  {t('tracking.startGps')}
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <div className="trk-share-grid">
+                          <div className="trk-share-wide trk-gps-help">
+                            {canLiveShare ? t('tracking.gpsBrowserNote') : t('tracking.startAfterTrip')}
+                          </div>
+                          <button type="button" className="ui-btn ui-btn-outline ui-btn-sm trk-share-wide" onClick={useMyLocation}>
+                            {t('tracking.useMyLocation')}
+                          </button>
                           <label className="ui-field">
                             <span className="ui-label">{t('tracking.latitude')}</span>
                             <input className="ui-input" type="number" step="0.000001" value={loc.lat} onChange={(event) => setLoc((prev) => ({ ...prev, lat: event.target.value }))} placeholder="9.9312" />
@@ -352,17 +427,28 @@ export default function Tracking() {
                             <input className="ui-input" value={loc.location} onChange={(event) => setLoc((prev) => ({ ...prev, location: event.target.value }))} placeholder={t('tracking.locationPlaceholder')} />
                           </label>
                         </div>
-                        <label className="trk-consent">
-                          <input type="checkbox" checked={loc.consent} onChange={(event) => setLoc((prev) => ({ ...prev, consent: event.target.checked }))} />
-                          <span>{t('tracking.consent')}</span>
-                        </label>
                         {locError && <div className="ui-alert ui-alert-error">{locError}</div>}
                         <div className="trk-share-actions">
-                          <button type="submit" className="ui-btn ui-btn-primary ui-btn-sm" disabled={busy}>
+                          <button type="submit" className="ui-btn ui-btn-outline ui-btn-sm" disabled={busy}>
                             {busy ? t('tracking.sharing') : t('tracking.shareUpdate')}
                           </button>
                         </div>
+                        <label className="trk-consent">
+                          <input
+                            type="checkbox"
+                            checked={loc.consent}
+                            onChange={(event) => changeLocationConsent(event.target.checked)}
+                          />
+                          <span>{t('tracking.consent')}</span>
+                        </label>
                       </form>
+                    )}
+
+                    {isActive && canShare && !canLiveShare && (
+                      <p className="trk-note">
+                        <Icon name="info" size={13} />
+                        {t('tracking.startAfterTrip')}
+                      </p>
                     )}
 
                     {isActive && !canShare && (

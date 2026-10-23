@@ -197,10 +197,10 @@ class BookingDeliveryUpdate(BaseModel):
 
 
 class BookingLocationUpdate(BaseModel):
-    lat: float
-    lng: float
+    lat: float | None = Field(default=None, ge=-90, le=90, allow_inf_nan=False)
+    lng: float | None = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
     location: str = Field(default="", max_length=255)
-    consent: bool = True
+    consent: bool = False
 
 
 class BookingOut(BaseModel):
