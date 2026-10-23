@@ -4,6 +4,7 @@ import Icon from '../components/Icons'
 import { getReports } from '../services/operationsService'
 import './Reports.css'
 import { useLanguage } from '../context/LanguageContext'
+import { formatIndiaDate, formatIndiaDateTime } from '../utils/dateTime'
 
 const inr = (value) =>
   value === null || value === undefined
@@ -12,7 +13,7 @@ const inr = (value) =>
 const kg = (value) => `${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })} kg`
 const when = (value) =>
   value
-    ? new Date(value).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+    ? formatIndiaDateTime(value, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
     : '—'
 
 const STATUS_TONE = {
@@ -87,7 +88,7 @@ export default function Reports() {
       <div className="ui-toolbar reports-toolbar">
         <div>
           <h2>{t('reports.title')}</h2>
-          <p>{t('reports.generated', [new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })])}</p>
+          <p>{t('reports.generated', [formatIndiaDate(new Date(), { day: 'numeric', month: 'long', year: 'numeric' })])}</p>
         </div>
         <div className="ui-toolbar-actions">
           <button type="button" className="ui-btn ui-btn-outline" onClick={() => window.print()}>

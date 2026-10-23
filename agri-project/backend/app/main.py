@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect
 
 from app.core.config import settings
 from app.core.database import Base, engine
@@ -52,7 +53,36 @@ def migrate_schema():
 
 migrate_schema()
 Base.metadata.create_all(bind=engine)
+
+
+def migrate_user_vehicle_fields():
+    """Add operator vehicle profile fields to existing database schemas."""
+    inspector = inspect(engine)
+    if not inspector.has_table("users"):
+        return
+
+    columns = {column["name"] for column in inspector.get_columns("users")}
+    additions = {
+        "vehicle_type": "VARCHAR(80)",
+        "vehicle_number": "VARCHAR(40)",
+        "vehicle_capacity_kg": "FLOAT",
+    }
+    with engine.begin() as conn:
+        for name, sql_type in additions.items():
+            if name not in columns:
+                conn.exec_driver_sql(
+                    f"ALTER TABLE users ADD COLUMN {name} {sql_type}"
+                )
+
+
+migrate_user_vehicle_fields()
 migrate_schema()
+
+try:
+    from app.core.db_init import init_db_data
+    init_db_data()
+except Exception as e:
+    print(f"Database initialization notice: {e}")
 
 app = FastAPI(title=settings.APP_NAME)
 

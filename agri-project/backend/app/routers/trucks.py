@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.operations import Truck
+from app.models.operations import Booking, Truck
 from app.models.user import User
 from app.routers.auth import get_current_user, require_truck_operator
 from app.schemas.operations import TruckCreate, TruckOut, TruckUpdate
@@ -28,6 +28,8 @@ def truck_out(truck: Truck) -> TruckOut:
         has_passenger_seat=truck.has_passenger_seat,
         operator_id=truck.operator_id,
         operator_name=truck.operator.full_name if truck.operator else "",
+        operator_phone=(truck.operator.phone or "") if truck.operator else "",
+        operator_location=(truck.operator.location or "") if truck.operator else "",
         last_location=truck.last_location,
         last_lat=truck.last_lat,
         last_lng=truck.last_lng,
@@ -118,6 +120,22 @@ def create_truck(
     db.commit()
     db.refresh(truck)
     return truck_out(truck)
+
+
+@router.delete("/{truck_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_truck(
+    truck_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    truck = _get_truck(db, truck_id, user)
+    has_bookings = db.query(Booking.id).filter(Booking.truck_id == truck.id).first()
+    if has_bookings:
+        truck.status = "inactive"
+    else:
+        db.delete(truck)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.patch("/{truck_id}", response_model=TruckOut)

@@ -15,6 +15,9 @@ import Reports from './pages/Reports'
 import Profile from './pages/Profile'
 import Chat from './pages/Chat'
 import Admin from './pages/Admin'
+import BookingRequests from './pages/BookingRequests'
+import MyTrips from './pages/MyTrips'
+import Notifications from './pages/Notifications'
 
 function ProtectedLayout({ allowedRoles }) {
   const { isAuth, role } = useAuth()
@@ -54,6 +57,11 @@ export default function App() {
               <Route path="/reports" element={<Reports />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/chat" element={<Chat />} />
+            </Route>
+            <Route element={<ProtectedLayout allowedRoles={['truck_operator', 'admin']} />}>
+              <Route path="/booking-requests" element={<BookingRequests />} />
+              <Route path="/trips" element={<MyTrips />} />
+              <Route path="/notifications" element={<Notifications />} />
             </Route>
             <Route element={<ProtectedLayout allowedRoles={['admin']} />}>
               <Route path="/admin" element={<Admin />} />

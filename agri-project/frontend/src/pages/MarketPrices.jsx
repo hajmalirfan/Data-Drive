@@ -11,12 +11,13 @@ import {
 } from '../services/operationsService'
 import './MarketPrices.css'
 import { useLanguage } from '../context/LanguageContext'
+import { formatIndiaDateTime } from '../utils/dateTime'
 
 const inr = (value) =>
   value === null || value === undefined ? '—' : `₹${Number(value).toFixed(2)}`
 const observed = (value) =>
   value
-    ? new Date(value).toLocaleString('en-IN', {
+    ? formatIndiaDateTime(value, {
         day: 'numeric',
         month: 'short',
         hour: 'numeric',

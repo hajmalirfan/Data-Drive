@@ -32,6 +32,9 @@ class UserOut(BaseModel):
     full_name: str = ""
     phone: str | None = None
     location: str = ""
+    vehicle_type: str | None = None
+    vehicle_number: str | None = None
+    vehicle_capacity_kg: float | None = None
     role: UserRole = "farmer"
 
     class Config:
@@ -41,6 +44,9 @@ class UserProfileUpdate(BaseModel):
     full_name: str | None = Field(default=None, min_length=2, max_length=120)
     phone: str | None = Field(default=None, max_length=20)
     location: str | None = Field(default=None, max_length=255)
+    vehicle_type: str | None = Field(default=None, max_length=80)
+    vehicle_number: str | None = Field(default=None, max_length=40)
+    vehicle_capacity_kg: float | None = Field(default=None, gt=0)
 
 class UserRoleUpdate(BaseModel):
     role: UserRole

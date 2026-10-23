@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { translations, LANGUAGES } from '../i18n/translations'
+import { MESSAGES } from '../i18n/messages'
 
 const LanguageContext = createContext(null)
 const STORAGE_KEY = 'agri-lang'
@@ -24,7 +25,7 @@ export function LanguageProvider({ children }) {
 
   const value = useMemo(() => {
     const t = (key, vars) => {
-      let text = translations[lang]?.[key] ?? translations.en[key] ?? key
+      let text = translations[lang]?.[key] ?? translations.en[key] ?? MESSAGES[key] ?? key
       if (vars) {
         if (Array.isArray(vars)) {
           vars.forEach((value, index) => {

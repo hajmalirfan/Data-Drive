@@ -47,6 +47,7 @@ FARMER_STATUSES = {"cancelled"}
 
 
 def booking_out(booking: Booking) -> BookingOut:
+    operator = booking.truck.operator if booking.truck else None
     return BookingOut(
         id=booking.id,
         farmer_id=booking.farmer_id,
@@ -54,6 +55,10 @@ def booking_out(booking: Booking) -> BookingOut:
         truck_id=booking.truck_id,
         vehicle_number=booking.truck.vehicle_number if booking.truck else "",
         truck_type=booking.truck.truck_type if booking.truck else "",
+        operator_id=operator.id if operator else None,
+        operator_name=operator.full_name if operator else "",
+        operator_phone=(operator.phone or "") if operator else "",
+        operator_location=(operator.location or "") if operator else "",
         crop_id=booking.crop_id,
         crop_name=booking.crop.crop_name if booking.crop else "",
         market_id=booking.market_id,

@@ -23,6 +23,9 @@ export default function Profile() {
     full_name: user?.full_name || '',
     phone: user?.phone || '',
     location: user?.location || '',
+    vehicle_type: user?.vehicle_type || '',
+    vehicle_number: user?.vehicle_number || '',
+    vehicle_capacity_kg: user?.vehicle_capacity_kg?.toString() || '',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -37,6 +40,9 @@ export default function Profile() {
           full_name: data.full_name || '',
           phone: data.phone || '',
           location: data.location || '',
+          vehicle_type: data.vehicle_type || '',
+          vehicle_number: data.vehicle_number || '',
+          vehicle_capacity_kg: data.vehicle_capacity_kg?.toString() || '',
         })
       })
       .catch((err) => setError(err.response?.data?.detail || t('profile.loadError')))
@@ -54,6 +60,13 @@ export default function Profile() {
         full_name: form.full_name.trim(),
         phone: form.phone.trim() || null,
         location: form.location.trim(),
+        ...(role === 'truck_operator' && {
+          vehicle_type: form.vehicle_type.trim() || null,
+          vehicle_number: form.vehicle_number.trim() || null,
+          vehicle_capacity_kg: form.vehicle_capacity_kg.trim()
+            ? Number(form.vehicle_capacity_kg)
+            : null,
+        }),
       })
       setProfile(updated)
       updateUser(updated)
@@ -78,8 +91,8 @@ export default function Profile() {
     <div className="ui-page profile-page">
       <div className="ui-toolbar">
         <div>
-          <h2>{t('profile.title')}</h2>
-          <p>{t('profile.subtitle')}</p>
+          <h2>{role === 'truck_operator' ? t('profile.settingsTitle') : t('profile.title')}</h2>
+          <p>{role === 'truck_operator' ? t('profile.settingsSubtitle') : t('profile.subtitle')}</p>
         </div>
         <div className="ui-toolbar-actions">
           <Link to="/dashboard" className="ui-btn ui-btn-outline">
@@ -173,6 +186,40 @@ export default function Profile() {
                   <input className="ui-input" value={roleLabel(role)} disabled />
                   <span className="ui-hint">{t('profile.roleHint')}</span>
                 </label>
+                {role === 'truck_operator' && (
+                  <>
+                    <label className="ui-field">
+                      <span className="ui-label">{t('profile.vehicleType')}</span>
+                      <input
+                        className="ui-input"
+                        value={form.vehicle_type}
+                        onChange={(event) => setForm((prev) => ({ ...prev, vehicle_type: event.target.value }))}
+                        maxLength={80}
+                      />
+                    </label>
+                    <label className="ui-field">
+                      <span className="ui-label">{t('profile.vehicleNumber')}</span>
+                      <input
+                        className="ui-input"
+                        value={form.vehicle_number}
+                        onChange={(event) => setForm((prev) => ({ ...prev, vehicle_number: event.target.value }))}
+                        maxLength={40}
+                      />
+                    </label>
+                    <label className="ui-field">
+                      <span className="ui-label">{t('profile.vehicleCapacity')}</span>
+                      <input
+                        className="ui-input"
+                        type="number"
+                        min="0.01"
+                        step="any"
+                        value={form.vehicle_capacity_kg}
+                        onChange={(event) => setForm((prev) => ({ ...prev, vehicle_capacity_kg: event.target.value }))}
+                      />
+                      <span className="ui-hint">{t('common.quantityKg')}</span>
+                    </label>
+                  </>
+                )}
                 <div className="profile-form-actions">
                   <button
                     type="button"
@@ -181,6 +228,9 @@ export default function Profile() {
                       full_name: profile?.full_name || '',
                       phone: profile?.phone || '',
                       location: profile?.location || '',
+                      vehicle_type: profile?.vehicle_type || '',
+                      vehicle_number: profile?.vehicle_number || '',
+                      vehicle_capacity_kg: profile?.vehicle_capacity_kg?.toString() || '',
                     })}
                   >
                     Reset
@@ -193,63 +243,6 @@ export default function Profile() {
             </div>
           </section>
 
-          <section className="ui-card profile-shortcuts">
-            <div className="ui-card-head">
-              <div>
-                <h3><Icon name="sparkles" size={16} />{t('profile.quickAccess')}</h3>
-                <p>{t('profile.quickAccessSub')}</p>
-              </div>
-            </div>
-            <div className="ui-card-body">
-              <div className="profile-shortcut-grid">
-                <Link to="/crops" className="profile-shortcut">
-                  <span><Icon name="crops" size={18} /></span>
-                  <strong>{t('nav.crops')}</strong>
-                  <small>{t('profile.manageStock')}</small>
-                </Link>
-                <Link to="/market-prices" className="profile-shortcut">
-                  <span><Icon name="prices" size={18} /></span>
-                  <strong>{t('nav.marketPrices')}</strong>
-                  <small>{t('profile.compareRates')}</small>
-                </Link>
-                <Link to="/bookings" className="profile-shortcut">
-                  <span><Icon name="bookings" size={18} /></span>
-                  <strong>{t('nav.bookings')}</strong>
-                  <small>{t('profile.reviewTransport')}</small>
-                </Link>
-                <Link to="/chat" className="profile-shortcut">
-                  <span><Icon name="chat" size={18} /></span>
-                  <strong>{t('nav.chat')}</strong>
-                  <small>{t('profile.askFarm')}</small>
-                </Link>
-              </div>
-            </div>
-          </section>
-
-          <section className="ui-card profile-security">
-            <div className="ui-card-head">
-              <div>
-                <h3><Icon name="lock" size={16} />{t('profile.accountSecurity')}</h3>
-                <p>{t('profile.securitySub')}</p>
-              </div>
-            </div>
-            <div className="ui-card-body">
-              <div className="profile-security-row">
-                <span><Icon name="shield" size={16} /></span>
-                <div>
-                  <strong>{t('profile.sessionActive')}</strong>
-                  <p>{t('profile.sessionActiveSub')}</p>
-                </div>
-              </div>
-              <div className="profile-security-row">
-                <span><Icon name="phone" size={16} /></span>
-                <div>
-                  <strong>{t('profile.mobileSignin')}</strong>
-                  <p>{t('profile.mobileSigninSub')}</p>
-                </div>
-              </div>
-            </div>
-          </section>
         </div>
       </div>
     </div>

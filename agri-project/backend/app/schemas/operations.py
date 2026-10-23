@@ -164,6 +164,8 @@ class TruckOut(BaseModel):
     has_passenger_seat: bool
     operator_id: int | None = None
     operator_name: str = ""
+    operator_phone: str = ""
+    operator_location: str = ""
     last_location: str = ""
     last_lat: float | None = None
     last_lng: float | None = None

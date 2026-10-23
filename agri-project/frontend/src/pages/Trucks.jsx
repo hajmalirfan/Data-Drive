@@ -6,6 +6,7 @@ import Modal from '../components/Modal'
 import {
   createBooking,
   createTruck,
+  deleteTruck,
   getCrops,
   getMarkets,
   getTrucks,
@@ -13,19 +14,16 @@ import {
 } from '../services/operationsService'
 import './Trucks.css'
 import { useLanguage } from '../context/LanguageContext'
+import { formatIndiaDate, getIndiaDateTimeLocal } from '../utils/dateTime'
 
 const kg = (value) => `${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })} kg`
 const inr = (value) =>
   value === null || value === undefined ? '—' : `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
 const dateText = (value) =>
-  value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'Any day'
+  value ? formatIndiaDate(value, { day: 'numeric', month: 'short' }) : 'Any day'
 
 const nextPickup = () => {
-  const date = new Date()
-  date.setDate(date.getDate() + 1)
-  date.setHours(8, 0, 0, 0)
-  const offset = date.getTimezoneOffset()
-  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16)
+  return getIndiaDateTimeLocal(1, 8)
 }
 
 export default function Trucks() {
@@ -58,10 +56,7 @@ export default function Trucks() {
   const [truckForm, setTruckForm] = useState({
     vehicle_number: '',
     truck_type: 'Open body',
-    capacity_kg: '',
     available_capacity_kg: '',
-    route_from: '',
-    route_to: '',
     available_from: '',
     price_per_km: '28',
     base_fare: '500',
@@ -182,16 +177,15 @@ export default function Trucks() {
     event.preventDefault()
     setTruckError('')
     if (truckForm.vehicle_number.trim().length < 3) { setTruckError(t('trucks.errVehicle')); return }
-    if (!Number(truckForm.capacity_kg)) { setTruckError(t('trucks.errTruckCapacity')); return }
+    const capacityKg = Number(user?.vehicle_capacity_kg)
+    if (!capacityKg) { setTruckError(t('trucks.profileCapacityRequired')); return }
     setSaving(true)
     try {
       await createTruck({
         vehicle_number: truckForm.vehicle_number.trim(),
         truck_type: truckForm.truck_type.trim() || 'Open body',
-        capacity_kg: Number(truckForm.capacity_kg),
+        capacity_kg: capacityKg,
         available_capacity_kg: truckForm.available_capacity_kg === '' ? null : Number(truckForm.available_capacity_kg),
-        route_from: truckForm.route_from.trim(),
-        route_to: truckForm.route_to.trim(),
         available_from: truckForm.available_from || null,
         price_per_km: Number(truckForm.price_per_km) || 28,
         base_fare: Number(truckForm.base_fare) || 500,
@@ -217,6 +211,19 @@ export default function Trucks() {
       setNotice(t('trucks.marked', [truck.vehicle_number, statusLabel(next)]))
     } catch (err) {
       setError(err.response?.data?.detail || t('trucks.truckStatusError'))
+    }
+  }
+
+  const removeTruck = async (truck) => {
+    if (!window.confirm(t('trucks.removeConfirm', [truck.vehicle_number]))) return
+    setError('')
+    setNotice('')
+    try {
+      await deleteTruck(truck.id)
+      setMyTrucks((current) => current.filter((item) => item.id !== truck.id))
+      setNotice(t('trucks.removed', [truck.vehicle_number]))
+    } catch (err) {
+      setError(err.response?.data?.detail || t('trucks.removeError'))
     }
   }
 
@@ -314,9 +321,15 @@ export default function Trucks() {
                     )}
                   </div>
                   <div className="truck-operator">
-                    <span>{t('login.demoOperator')}</span>
-                    <strong>{truck.operator_name || t('trucks.verified')}</strong>
-                    {truck.last_location && <small><Icon name="markets" size={10} /> {truck.last_location}</small>}
+                    <span>{t('trucks.operator')}</span>
+                    <strong>{truck.operator_name || t('trucks.notProvided')}</strong>
+                    <small><Icon name="phone" size={10} /> {truck.operator_phone || t('trucks.notProvided')}</small>
+                    {truck.operator_location && (
+                      <small><Icon name="markets" size={10} /> {truck.operator_location}</small>
+                    )}
+                    {truck.last_location && (
+                      <small><Icon name="route" size={10} /> {truck.last_location}</small>
+                    )}
                   </div>
                   <div className="truck-card-foot">
                     <div>
@@ -334,14 +347,6 @@ export default function Trucks() {
         </>
       ) : (
         <div className="trucks-mine">
-          <div className="ui-card trucks-filter-card">
-            <div className="ui-filters">
-              <span className="trucks-mine-title"><Icon name="truck" size={15} /> {myTrucks.length} trucks registered by {user?.full_name || 'you'}</span>
-            </div>
-            <button type="button" className="ui-btn ui-btn-outline ui-btn-sm" onClick={loadMine}>
-              <Icon name="refresh" size={13} /> Refresh
-            </button>
-          </div>
           {loading ? (
             <div className="ui-card ui-loading"><span className="ui-spinner" />{t('trucks.loadingMine')}</div>
           ) : myTrucks.length === 0 ? (
@@ -387,9 +392,14 @@ export default function Trucks() {
                       <strong>{inr(truck.base_fare)}</strong>
                       <small>base + ₹{Number(truck.price_per_km).toFixed(0)}/km</small>
                     </div>
-                    <button type="button" className="ui-btn ui-btn-outline ui-btn-sm" onClick={() => toggleTruckStatus(truck)}>
-                      {truck.status === 'available' ? t('trucks.setMaintenance') : t('trucks.setAvailable')}
-                    </button>
+                    <div className="truck-card-actions">
+                      <button type="button" className="ui-btn ui-btn-outline ui-btn-sm" onClick={() => toggleTruckStatus(truck)}>
+                        {truck.status === 'available' ? t('trucks.setMaintenance') : t('trucks.setAvailable')}
+                      </button>
+                      <button type="button" className="ui-btn ui-btn-outline ui-btn-sm truck-remove-btn" onClick={() => removeTruck(truck)}>
+                        <Icon name="trash" size={13} /> {t('trucks.remove')}
+                      </button>
+                    </div>
                   </div>
                 </article>
               ))}
@@ -491,6 +501,54 @@ export default function Trucks() {
               </span>
             </label>
 
+            <div className="truck-detail-block span-2">
+              <strong className="truck-detail-title"><Icon name="profile" size={14} />{t('trucks.operatorDetails')}</strong>
+              <div className="truck-detail-grid">
+                <div>
+                  <span>{t('trucks.operator')}</span>
+                  <strong>{selectedTruck.operator_name || t('trucks.notProvided')}</strong>
+                </div>
+                <div>
+                  <span>{t('trucks.operatorPhone')}</span>
+                  <strong>{selectedTruck.operator_phone || t('trucks.notProvided')}</strong>
+                </div>
+                <div>
+                  <span>{t('trucks.operatorLocation')}</span>
+                  <strong>{selectedTruck.operator_location || t('trucks.notProvided')}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="truck-detail-block span-2">
+              <strong className="truck-detail-title"><Icon name="truck" size={14} />{t('trucks.availabilityDetails')}</strong>
+              <div className="truck-detail-grid">
+                <div>
+                  <span>{t('common.status')}</span>
+                  <strong>{statusLabel(selectedTruck.status)}</strong>
+                </div>
+                <div>
+                  <span>{t('trucks.availableFromLabel')}</span>
+                  <strong>{selectedTruck.available_from ? dateText(selectedTruck.available_from) : '—'}</strong>
+                </div>
+                <div>
+                  <span>{t('trucks.freeCapacity')}</span>
+                  <strong>{kg(selectedTruck.available_capacity_kg)}</strong>
+                </div>
+                <div>
+                  <span>{t('trucks.route')}</span>
+                  <strong>{selectedTruck.route_from || '—'} → {selectedTruck.route_to || '—'}</strong>
+                </div>
+                <div>
+                  <span>{t('trucks.lastReportedLocation')}</span>
+                  <strong>{selectedTruck.last_location || '—'}</strong>
+                </div>
+                <div>
+                  <span>{t('trucks.passengerSeat')}</span>
+                  <strong>{selectedTruck.has_passenger_seat ? t('common.yes') : t('common.no')}</strong>
+                </div>
+              </div>
+            </div>
+
             <div className="truck-estimate span-2">
               <div>
                 <span>{t('trucks.estimatedCost')}</span>
@@ -535,20 +593,8 @@ export default function Trucks() {
               <input className="ui-input" value={truckForm.truck_type} onChange={(event) => setTruckForm((prev) => ({ ...prev, truck_type: event.target.value }))} placeholder="Open body" />
             </label>
             <label className="ui-field">
-              <span className="ui-label">{t('trucks.capacityKg')}</span>
-              <input className="ui-input" type="number" min="1" value={truckForm.capacity_kg} onChange={(event) => setTruckForm((prev) => ({ ...prev, capacity_kg: event.target.value }))} required />
-            </label>
-            <label className="ui-field">
               <span className="ui-label">{t('trucks.freeCapacityKg')}</span>
               <input className="ui-input" type="number" min="0" value={truckForm.available_capacity_kg} onChange={(event) => setTruckForm((prev) => ({ ...prev, available_capacity_kg: event.target.value }))} placeholder={t('trucks.defaultsFull')} />
-            </label>
-            <label className="ui-field">
-              <span className="ui-label">{t('trucks.routeFrom')}</span>
-              <input className="ui-input" value={truckForm.route_from} onChange={(event) => setTruckForm((prev) => ({ ...prev, route_from: event.target.value }))} placeholder="Theni" />
-            </label>
-            <label className="ui-field">
-              <span className="ui-label">{t('trucks.routeTo')}</span>
-              <input className="ui-input" value={truckForm.route_to} onChange={(event) => setTruckForm((prev) => ({ ...prev, route_to: event.target.value }))} placeholder="Madurai" />
             </label>
             <label className="ui-field">
               <span className="ui-label">{t('trucks.availableFromLabel')}</span>

@@ -297,6 +297,12 @@ def update_me(
         current_user.full_name = data.full_name.strip()
     if data.location is not None:
         current_user.location = data.location.strip()
+    if "vehicle_type" in data.model_fields_set:
+        current_user.vehicle_type = data.vehicle_type.strip() if data.vehicle_type else None
+    if "vehicle_number" in data.model_fields_set:
+        current_user.vehicle_number = data.vehicle_number.strip() if data.vehicle_number else None
+    if "vehicle_capacity_kg" in data.model_fields_set:
+        current_user.vehicle_capacity_kg = data.vehicle_capacity_kg
     if data.phone is not None:
         phone = normalize_phone(data.phone)
         existing = (

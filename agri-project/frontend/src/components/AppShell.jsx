@@ -12,6 +12,7 @@ import Icon from './Icons'
 import LanguageSelector from './LanguageSelector'
 import './AppShell.css'
 import { useLanguage } from '../context/LanguageContext'
+import { formatIndiaDate, formatIndiaDateTime, getIndiaDateTimestamp } from '../utils/dateTime'
 
 const NAV = [
   { to: '/dashboard', label: 'nav.dashboard', icon: 'dashboard' },
@@ -27,6 +28,15 @@ const NAV = [
   { to: '/admin', label: 'nav.admin', icon: 'shield', roles: ['admin'] },
 ]
 
+const DRIVER_NAV = [
+  { to: '/dashboard', label: 'nav.dashboard', icon: 'dashboard' },
+  { to: '/booking-requests', label: 'nav.bookingRequests', icon: 'bookings' },
+  { to: '/trips', label: 'nav.myTrips', icon: 'tracking' },
+  { to: '/trucks', label: 'trucks.myTrucks', icon: 'truck' },
+  { to: '/notifications', label: 'nav.notifications', icon: 'bell' },
+  { to: '/profile', label: 'nav.profileSettings', icon: 'profile' },
+]
+
 const TITLES = {
   '/dashboard': ['title.dashboard', 'subtitle.dashboard'],
   '/crops': ['title.crops', 'subtitle.crops'],
@@ -39,13 +49,17 @@ const TITLES = {
   '/profile': ['title.profile', 'subtitle.profile'],
   '/chat': ['title.chat', 'subtitle.chat'],
   '/admin': ['title.admin', 'subtitle.admin'],
+  '/booking-requests': ['title.bookingRequests', 'subtitle.bookingRequests'],
+  '/trips': ['title.myTrips', 'subtitle.myTrips'],
+  '/notifications': ['title.notifications', 'subtitle.notifications'],
 }
 
 const pick = (obj, key, fallback = '') => obj?.[key] ?? fallback
 
-function timeAgo(value, t) {
+function timeAgo(value, t, useLocalTime) {
   if (!value) return ''
-  const diff = Math.max(0, Date.now() - new Date(value).getTime())
+  const timestamp = useLocalTime ? new Date(value).getTime() : getIndiaDateTimestamp(value)
+  const diff = Math.max(0, Date.now() - timestamp)
   const minutes = Math.floor(diff / 60000)
   if (minutes < 1) return t('shell.justNow')
   if (minutes < 60) return t('shell.minutesAgo', [minutes])
@@ -53,7 +67,9 @@ function timeAgo(value, t) {
   if (hours < 24) return t('shell.hoursAgo', [hours])
   const days = Math.floor(hours / 24)
   if (days < 7) return t('shell.daysAgo', [days])
-  return new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+  return useLocalTime
+    ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+    : formatIndiaDate(value, { day: 'numeric', month: 'short' })
 }
 
 export default function AppShell({ children }) {
@@ -70,8 +86,17 @@ export default function AppShell({ children }) {
   const searchRef = useRef(null)
   const notifRef = useRef(null)
 
-  const items = NAV.filter((item) => !item.roles || item.roles.includes(role))
-  const [titleKey, subtitleKey] = TITLES[location.pathname] || ['brand', 'appTagline']
+  const isDriver = role === 'truck_operator'
+  const items = isDriver ? DRIVER_NAV : NAV.filter((item) => !item.roles || item.roles.includes(role))
+  let [titleKey, subtitleKey] = TITLES[location.pathname] || ['brand', 'appTagline']
+  if (isDriver && location.pathname === '/dashboard') {
+    titleKey = 'title.driverDashboard'
+    subtitleKey = 'subtitle.driverDashboard'
+  }
+  if (isDriver && location.pathname === '/profile') {
+    titleKey = 'title.profileSettings'
+    subtitleKey = 'subtitle.profileSettings'
+  }
   const title = t(titleKey)
   const subtitle = t(subtitleKey)
   const unread = notifications.filter((item) => !item.is_read).length
@@ -316,7 +341,7 @@ export default function AppShell({ children }) {
                         <span>
                           <strong>{item.title}</strong>
                           <p>{item.message}</p>
-                          <small>{timeAgo(item.created_at, t)}</small>
+                          <small>{timeAgo(item.created_at, t, role === 'truck_operator')}</small>
                         </span>
                       </button>
                     ))}

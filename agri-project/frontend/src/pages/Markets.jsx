@@ -4,12 +4,13 @@ import Icon from '../components/Icons'
 import { getMarkets, getPriceCrops, getPrices } from '../services/operationsService'
 import './Markets.css'
 import { useLanguage } from '../context/LanguageContext'
+import { formatIndiaDateTime } from '../utils/dateTime'
 
 const inr = (value) =>
   value === null || value === undefined ? '—' : `₹${Number(value).toFixed(2)}`
 const observed = (value) =>
   value
-    ? new Date(value).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+    ? formatIndiaDateTime(value, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
     : '—'
 
 function MarketsMap({ markets, priceByMarket, selectedId, onSelect }) {

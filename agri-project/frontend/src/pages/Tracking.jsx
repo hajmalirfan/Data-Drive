@@ -10,11 +10,14 @@ import {
 } from '../services/operationsService'
 import './Tracking.css'
 import { useLanguage } from '../context/LanguageContext'
+import { formatIndiaDateTime } from '../utils/dateTime'
 
 const kg = (value) => `${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })} kg`
-const when = (value) =>
+const when = (value, useLocalTime) =>
   value
-    ? new Date(value).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+    ? (useLocalTime
+      ? new Date(value).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+      : formatIndiaDateTime(value, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }))
     : '—'
 
 const STEPS = [
@@ -264,7 +267,7 @@ export default function Tracking() {
                   <span className="trk-item-main">
                     <strong>{booking.crop_name || t('common.generalGoods')} · {kg(booking.quantity_kg)}</strong>
                     <small>{booking.pickup_location} → {booking.market_name}</small>
-                    <span>{booking.vehicle_number} · {when(booking.pickup_at)}</span>
+                    <span>{booking.vehicle_number} · {when(booking.pickup_at, isTruckOperator)}</span>
                   </span>
                   <span className={`ui-badge ui-badge-${isActiveTrip(booking.status) ? 'blue' : booking.status === 'delivered' ? 'green' : 'red'}`}>
                     {statusLabel(booking.status)}
@@ -321,10 +324,10 @@ export default function Tracking() {
                     <div className="trk-info">
                       <div><span>{t('role.farmer')}</span><strong>{selected.farmer_name || t('common.you')}</strong></div>
                       <div><span>{t('common.pickup')}</span><strong>{selected.pickup_location}</strong></div>
-                      <div><span>{t('tracking.pickupTime')}</span><strong>{when(selected.pickup_at)}</strong></div>
+                      <div><span>{t('tracking.pickupTime')}</span><strong>{when(selected.pickup_at, isTruckOperator)}</strong></div>
                       <div><span>{t('common.quantity')}</span><strong>{kg(selected.quantity_kg)}</strong></div>
                       <div><span>{t('tracking.transportCost')}</span><strong>₹{Number(selected.estimated_transport_cost).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</strong></div>
-                      <div><span>{t('tracking.lastReported')}</span><strong>{when(selected.last_reported_at)}</strong></div>
+                      <div><span>{t('tracking.lastReported')}</span><strong>{when(selected.last_reported_at, isTruckOperator)}</strong></div>
                     </div>
 
                     {isActive && canShare && (
@@ -372,7 +375,7 @@ export default function Tracking() {
                     )}
                     {selected.status === 'delivered' && (
                       <p className="trk-note success">
-                        <Icon name="check" size={13} /> Delivered {when(selected.delivered_at)}. Record the sale from My Bookings.
+                        <Icon name="check" size={13} /> Delivered {when(selected.delivered_at, isTruckOperator)}. Record the sale from My Bookings.
                       </p>
                     )}
                   </div>

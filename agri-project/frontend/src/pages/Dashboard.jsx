@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { compareMarkets, getDashboard } from '../services/operationsService'
 import Icon from '../components/Icons'
+import Modal from '../components/Modal'
+import DriverDashboard from './DriverDashboard'
 import './Dashboard.css'
 import { useLanguage } from '../context/LanguageContext'
+import { formatIndiaDate, formatIndiaDateTime, getIndiaHour } from '../utils/dateTime'
 
 const inr = (value) =>
   value === null || value === undefined
@@ -15,10 +18,10 @@ const kg = (value) =>
     ? '—'
     : `${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 1 })} kg`
 const shortDate = (value) =>
-  value ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—'
+  value ? formatIndiaDate(value, { day: 'numeric', month: 'short' }) : '—'
 const shortDateTime = (value) =>
   value
-    ? new Date(value).toLocaleString('en-IN', {
+    ? formatIndiaDateTime(value, {
         day: 'numeric',
         month: 'short',
         hour: 'numeric',
@@ -161,7 +164,7 @@ function MarketMap({ markets }) {
   )
 }
 
-export default function Dashboard() {
+function FarmerDashboard() {
   const { t, statusLabel, roleLabel } = useLanguage()
   const { user } = useAuth()
   const [data, setData] = useState(null)
@@ -172,6 +175,7 @@ export default function Dashboard() {
   const [comparison, setComparison] = useState(null)
   const [comparing, setComparing] = useState(false)
   const [showAssumptions, setShowAssumptions] = useState(false)
+  const [driverTruck, setDriverTruck] = useState(null)
 
   const load = () => {
     setLoading(true)
@@ -209,7 +213,7 @@ export default function Dashboard() {
   }, [selectedCropId, quantity])
 
   const greeting = (() => {
-    const hour = new Date().getHours()
+    const hour = getIndiaHour()
     if (hour < 12) return t('dash.greetingMorning')
     if (hour < 17) return t('dash.greetingAfternoon')
     return t('dash.greetingEvening')
@@ -610,18 +614,61 @@ export default function Dashboard() {
             ) : (
               <div className="dbm-truck-list">
                 {trucks.slice(0, 4).map((truck) => (
-                  <Link key={truck.id} to="/trucks" className="dbm-truck-card">
+                  <div key={truck.id} className="dbm-truck-card">
                     <span className="dbm-truck-art"><Icon name="truck" size={21} /></span>
-                    <span className="dbm-truck-info">
-                      <strong>{truck.vehicle_number}</strong>
+                    <div className="dbm-truck-info">
+                      <div className="dbm-truck-top-line" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <strong>{truck.vehicle_number}</strong>
+                        <span className="ui-badge ui-badge-green" style={{ fontSize: '8px', padding: '1px 5px' }}>
+                          <Icon name="check" size={8} /> Verified
+                        </span>
+                      </div>
                       <small>{truck.truck_type} · {kg(truck.available_capacity_kg)} free</small>
                       <small>{truck.route_from || t('common.local')} → {truck.route_to || t('common.anyMandi')}</small>
-                    </span>
-                    <span className="dbm-truck-rate">
-                      <strong>₹{Number(truck.price_per_km).toFixed(0)}</strong>
-                      <small>{t('dash.perKm')}</small>
-                    </span>
-                  </Link>
+                      <div className="dbm-truck-driver-bar" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3, flexWrap: 'wrap' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '9.5px', color: '#274b34', fontWeight: 700 }}>
+                          <Icon name="profile" size={10} /> {truck.operator_name || 'Transport Operator'}
+                        </span>
+                        {truck.operator_phone && (
+                          <a
+                            href={`tel:${truck.operator_phone}`}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '9px', color: '#1a6f3b', fontWeight: 700, textDecoration: 'none' }}
+                            title="Call driver"
+                          >
+                            <Icon name="phone" size={9} /> {truck.operator_phone}
+                          </a>
+                        )}
+                        {(truck.operator_location || truck.last_location) && (
+                          <small style={{ fontSize: '9px', color: '#748679' }}>
+                            <Icon name="markets" size={9} /> {truck.operator_location || truck.last_location}
+                          </small>
+                        )}
+                      </div>
+                    </div>
+                    <div className="dbm-truck-side-action" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                      <span className="dbm-truck-rate">
+                        <strong>₹{Number(truck.price_per_km).toFixed(0)}</strong>
+                        <small>{t('dash.perKm')}</small>
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <button
+                          type="button"
+                          className="ui-btn ui-btn-outline ui-btn-sm"
+                          style={{ fontSize: '9px', padding: '2px 6px' }}
+                          onClick={() => setDriverTruck(truck)}
+                        >
+                          <Icon name="profile" size={10} /> Driver
+                        </button>
+                        <Link
+                          to="/trucks"
+                          className="ui-btn ui-btn-primary ui-btn-sm"
+                          style={{ fontSize: '9px', padding: '2px 6px' }}
+                        >
+                          Book <Icon name="arrowRight" size={9} />
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -642,6 +689,60 @@ export default function Dashboard() {
           <Link to="/markets" className="ui-btn ui-btn-outline ui-btn-sm">{t('dash.seeMarkets')}</Link>
         </section>
       )}
+
+      {driverTruck && (
+        <Modal
+          title={driverTruck.operator_name || 'Driver Details'}
+          subtitle={`${driverTruck.vehicle_number} · ${driverTruck.truck_type}`}
+          onClose={() => setDriverTruck(null)}
+          size="md"
+          footer={(
+            <>
+              {driverTruck.operator_phone && (
+                <a href={`tel:${driverTruck.operator_phone}`} className="ui-btn ui-btn-outline">
+                  <Icon name="phone" size={13} /> Call {driverTruck.operator_phone}
+                </a>
+              )}
+              <Link to="/trucks" className="ui-btn ui-btn-primary" onClick={() => setDriverTruck(null)}>
+                Book this truck <Icon name="arrowRight" size={13} />
+              </Link>
+            </>
+          )}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: '#edf6ec', borderRadius: 10, border: '1px solid #dce8d8' }}>
+              <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#25663d', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon name="profile" size={24} />
+              </div>
+              <div>
+                <strong style={{ fontSize: '14px', color: '#1a3423', display: 'block' }}>{driverTruck.operator_name || 'Verified Transport Driver'}</strong>
+                <span style={{ fontSize: '10.5px', color: '#617768' }}>Transport Operator · ID #{driverTruck.operator_id || driverTruck.id}</span>
+                {driverTruck.operator_phone && (
+                  <div style={{ marginTop: 3 }}>
+                    <a href={`tel:${driverTruck.operator_phone}`} style={{ fontSize: '11px', color: '#19703d', fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Icon name="phone" size={11} /> {driverTruck.operator_phone}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, padding: 10, background: '#f9fbf7', borderRadius: 8, border: '1px solid #e8eee5' }}>
+              <div><span style={{ fontSize: '8.5px', color: '#909f94', textTransform: 'uppercase', fontWeight: 800, display: 'block' }}>Vehicle</span><strong style={{ fontSize: '11px', color: '#273c2e' }}>{driverTruck.vehicle_number} ({driverTruck.truck_type})</strong></div>
+              <div><span style={{ fontSize: '8.5px', color: '#909f94', textTransform: 'uppercase', fontWeight: 800, display: 'block' }}>Free Capacity</span><strong style={{ fontSize: '11px', color: '#273c2e' }}>{kg(driverTruck.available_capacity_kg)}</strong></div>
+              <div><span style={{ fontSize: '8.5px', color: '#909f94', textTransform: 'uppercase', fontWeight: 800, display: 'block' }}>Base Location</span><strong style={{ fontSize: '11px', color: '#273c2e' }}>{driverTruck.operator_location || driverTruck.route_from || 'Tamil Nadu'}</strong></div>
+              <div><span style={{ fontSize: '8.5px', color: '#909f94', textTransform: 'uppercase', fontWeight: 800, display: 'block' }}>Route</span><strong style={{ fontSize: '11px', color: '#273c2e' }}>{driverTruck.route_from || 'Local'} → {driverTruck.route_to || 'Any Mandi'}</strong></div>
+              <div><span style={{ fontSize: '8.5px', color: '#909f94', textTransform: 'uppercase', fontWeight: 800, display: 'block' }}>Fare Rate</span><strong style={{ fontSize: '11px', color: '#273c2e' }}>₹{inr(driverTruck.base_fare)} + ₹{Number(driverTruck.price_per_km).toFixed(0)}/km</strong></div>
+              <div><span style={{ fontSize: '8.5px', color: '#909f94', textTransform: 'uppercase', fontWeight: 800, display: 'block' }}>Passenger Travel</span><strong style={{ fontSize: '11px', color: '#273c2e' }}>{driverTruck.has_passenger_seat ? 'Seat Available' : 'Cargo Only'}</strong></div>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
+}
+
+export default function Dashboard() {
+  const { isTruckOperator } = useAuth()
+  return isTruckOperator ? <DriverDashboard /> : <FarmerDashboard />
 }

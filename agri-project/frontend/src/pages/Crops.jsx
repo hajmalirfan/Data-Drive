@@ -10,6 +10,7 @@ import {
 } from '../services/operationsService'
 import './Crops.css'
 import { useLanguage } from '../context/LanguageContext'
+import { formatIndiaDate } from '../utils/dateTime'
 
 const EMPTY = {
   crop_name: '',
@@ -30,7 +31,7 @@ const inr = (value) =>
     : `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
 const kg = (value) => `${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 1 })} kg`
 const dateText = (value) =>
-  value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+  value ? formatIndiaDate(value, { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
 
 const tone = { available: 'green', reserved: 'amber', sold: 'blue', closed: 'grey' }
 

@@ -24,6 +24,7 @@ export const getTrucks = (params) => api.get('/api/trucks', { params }).then((r)
 export const createTruck = (payload) => api.post('/api/trucks', payload).then((r) => r.data)
 export const updateTruck = (id, payload) =>
   api.patch(`/api/trucks/${id}`, payload).then((r) => r.data)
+export const deleteTruck = (id) => api.delete(`/api/trucks/${id}`)
 
 // Bookings and tracking
 export const getBookings = (params) => api.get('/api/bookings', { params }).then((r) => r.data)

@@ -10,13 +10,14 @@ import {
 } from '../services/operationsService'
 import './Bookings.css'
 import { useLanguage } from '../context/LanguageContext'
+import { formatIndiaDateTime } from '../utils/dateTime'
 
 const inr = (value) =>
   value === null || value === undefined ? '—' : `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
 const kg = (value) => `${Number(value || 0).toLocaleString('en-IN', { maximumFractionDigits: 1 })} kg`
 const when = (value) =>
   value
-    ? new Date(value).toLocaleString('en-IN', {
+    ? formatIndiaDateTime(value, {
         day: 'numeric',
         month: 'short',
         hour: 'numeric',
