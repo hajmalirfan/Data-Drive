@@ -17,6 +17,7 @@ SmartAg Ops Advisor is a full-stack agriculture operations platform for comparin
 - **Frontend:** React 18, Vite, React Router, Axios
 - **Backend:** FastAPI, SQLAlchemy, Pydantic, Uvicorn
 - **Database:** PostgreSQL
+- **AI:** Gemini API for the agricultural assistant
 - **Auth:** JWT (`python-jose`), bcrypt password hashing
 
 ## Project Structure
@@ -69,11 +70,14 @@ Create a `.env` file from `.env.example`:
 SECRET_KEY=replace-with-a-long-random-secret
 DATABASE_URL=postgresql+psycopg2://postgres:postgres@127.0.0.1:5432/agri
 FRONTEND_URL=http://localhost:5173
-OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=llama3.2:3b
-OLLAMA_TIMEOUT_SECONDS=180
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-flash-latest
+GEMINI_TIMEOUT_SECONDS=180
 SEED_DEMO_DATA=false
 ```
+
+Set `GEMINI_API_KEY` in the backend `.env` file. The key stays on the backend
+and is never exposed to the frontend.
 
 Create the PostgreSQL database:
 

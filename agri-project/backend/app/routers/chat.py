@@ -19,13 +19,19 @@ from app.schemas.chat import (
     ConversationDetail,
     ConversationOut,
     ConversationRename,
-    OllamaStatus,
+    AIStatus,
 )
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
-OLLAMA_CHAT_URL = f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/chat"
-OLLAMA_TAGS_URL = f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/tags"
+GEMINI_API_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    f"{settings.GEMINI_MODEL}:generateContent"
+)
+GEMINI_STREAM_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    f"{settings.GEMINI_MODEL}:streamGenerateContent"
+)
 MAX_HISTORY_MESSAGES = 20
 
 
@@ -65,15 +71,50 @@ def _history(db: Session, conversation: Conversation) -> list[ChatMessage]:
     return list(reversed(rows))
 
 
-def _ollama_messages(
+def _gemini_contents(
     history: list[ChatMessage], role: str, language: str | None, content: str
-) -> list[dict]:
-    messages = [{"role": "system", "content": _system_prompt(role, language)}]
+) -> tuple[dict, list[dict]]:
+    contents = []
     for msg in history:
         if msg.role in ("user", "assistant"):
-            messages.append({"role": msg.role, "content": msg.content})
-    messages.append({"role": "user", "content": content})
-    return messages
+            contents.append(
+                {
+                    "role": "model" if msg.role == "assistant" else "user",
+                    "parts": [{"text": msg.content}],
+                }
+            )
+    contents.append({"role": "user", "parts": [{"text": content}]})
+    return (
+        {"parts": [{"text": _system_prompt(role, language)}]},
+        contents,
+    )
+
+
+def _gemini_payload(
+    history: list[ChatMessage], role: str, language: str | None, content: str
+) -> dict:
+    system_instruction, contents = _gemini_contents(history, role, language, content)
+    return {
+        "systemInstruction": system_instruction,
+        "contents": contents,
+        "generationConfig": {"temperature": 0.7},
+    }
+
+
+def _gemini_text(chunk: dict) -> str:
+    candidates = chunk.get("candidates") or []
+    if not candidates:
+        return ""
+    parts = (candidates[0].get("content") or {}).get("parts") or []
+    return "".join(part.get("text", "") for part in parts if isinstance(part, dict))
+
+
+def _require_gemini_key() -> None:
+    if not settings.GEMINI_API_KEY.strip():
+        raise HTTPException(
+            status_code=503,
+            detail="Gemini is not configured. Set GEMINI_API_KEY in the backend .env file.",
+        )
 
 
 def _save_user_message(db: Session, conversation: Conversation, content: str) -> ChatMessage:
@@ -101,34 +142,15 @@ def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
-@router.get("/status", response_model=OllamaStatus)
-async def ollama_status(_user: User = Depends(get_current_user)):
-    models: list[str] = []
-    try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(3.0, connect=2.0)) as client:
-            resp = await client.get(OLLAMA_TAGS_URL)
-            resp.raise_for_status()
-            models = [m.get("name", "") for m in resp.json().get("models", []) if m.get("name")]
-    except Exception:
-        return OllamaStatus(
-            available=False,
-            model=settings.OLLAMA_MODEL,
-            models=[],
-            detail="Ollama is not reachable. Start Ollama and try again.",
-        )
-
-    available = settings.OLLAMA_MODEL in models
-    detail = None
-    if not available:
-        detail = (
-            f"Model '{settings.OLLAMA_MODEL}' is not installed. "
-            f"Run: ollama pull {settings.OLLAMA_MODEL}"
-        )
-    return OllamaStatus(
+@router.get("/status", response_model=AIStatus)
+async def ai_status(_user: User = Depends(get_current_user)):
+    available = bool(settings.GEMINI_API_KEY.strip())
+    return AIStatus(
         available=available,
-        model=settings.OLLAMA_MODEL,
-        models=models,
-        detail=detail,
+        model=settings.GEMINI_MODEL,
+        detail=None
+        if available
+        else "Gemini is not configured. Set GEMINI_API_KEY in the backend .env file.",
     )
 
 
@@ -205,34 +227,38 @@ async def send_message(
     content = data.content.strip()
     if not content:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
+    _require_gemini_key()
 
     history = _history(db, conversation)
     user_message = _save_user_message(db, conversation, content)
-    messages = _ollama_messages(history, user.role, data.language, content)
-
-    payload = {
-        "model": settings.OLLAMA_MODEL,
-        "messages": messages,
-        "stream": False,
-        "options": {"temperature": 0.7},
-    }
+    payload = _gemini_payload(history, user.role, data.language, content)
     try:
         async with httpx.AsyncClient(
-            timeout=httpx.Timeout(settings.OLLAMA_TIMEOUT_SECONDS, connect=5.0)
+            timeout=httpx.Timeout(settings.GEMINI_TIMEOUT_SECONDS, connect=5.0)
         ) as client:
-            response = await client.post(OLLAMA_CHAT_URL, json=payload)
+            response = await client.post(
+                GEMINI_API_URL,
+                headers={"x-goog-api-key": settings.GEMINI_API_KEY},
+                json=payload,
+            )
     except httpx.HTTPError:
         raise HTTPException(
             status_code=503,
-            detail="Ollama is not reachable. Make sure it is running on the configured URL.",
+            detail="Could not connect to Gemini. Check your network and try again.",
         )
 
-    if response.status_code != 200:
-        raise HTTPException(status_code=502, detail="Ollama returned an error")
+    if response.is_error:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Gemini API request failed (HTTP {response.status_code}). Check the API key and quota.",
+        )
 
-    reply_text = (response.json().get("message") or {}).get("content", "").strip()
+    try:
+        reply_text = _gemini_text(response.json()).strip()
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=502, detail="Gemini returned an invalid response")
     if not reply_text:
-        raise HTTPException(status_code=502, detail="Ollama returned an empty reply")
+        raise HTTPException(status_code=502, detail="Gemini returned an empty reply")
 
     assistant_message = ChatMessage(
         conversation_id=conversation.id, role="assistant", content=reply_text
@@ -261,12 +287,13 @@ async def stream_message(
     content = data.content.strip()
     if not content:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
+    _require_gemini_key()
 
     history = _history(db, conversation)
     user_message = _save_user_message(db, conversation, content)
     user_message_payload = _message_dict(user_message)
     conversation_payload = _conversation_dict(conversation)
-    messages = _ollama_messages(history, user.role, data.language, content)
+    payload = _gemini_payload(history, user.role, data.language, content)
 
     async def event_stream():
         parts: list[str] = []
@@ -276,41 +303,42 @@ async def stream_message(
             {"user_message": user_message_payload, "conversation": conversation_payload},
         )
 
-        payload = {
-            "model": settings.OLLAMA_MODEL,
-            "messages": messages,
-            "stream": True,
-            "options": {"temperature": 0.7},
-        }
         try:
             async with httpx.AsyncClient(
-                timeout=httpx.Timeout(settings.OLLAMA_TIMEOUT_SECONDS, connect=5.0)
+                timeout=httpx.Timeout(settings.GEMINI_TIMEOUT_SECONDS, connect=5.0)
             ) as client:
-                async with client.stream("POST", OLLAMA_CHAT_URL, json=payload) as response:
-                    if response.status_code != 200:
-                        error_detail = "Ollama returned an error"
+                async with client.stream(
+                    "POST",
+                    GEMINI_STREAM_URL,
+                    params={"alt": "sse"},
+                    headers={"x-goog-api-key": settings.GEMINI_API_KEY},
+                    json=payload,
+                ) as response:
+                    if response.is_error:
+                        error_detail = (
+                            f"Gemini API request failed (HTTP {response.status_code}). "
+                            "Check the API key and quota."
+                        )
                     else:
                         async for line in response.aiter_lines():
-                            if not line.strip():
+                            if not line.startswith("data:"):
                                 continue
                             try:
-                                chunk = json.loads(line)
+                                chunk = json.loads(line[5:].strip())
                             except json.JSONDecodeError:
                                 continue
-                            delta = (chunk.get("message") or {}).get("content") or ""
+                            delta = _gemini_text(chunk)
                             if delta:
                                 parts.append(delta)
                                 yield _sse("delta", {"content": delta})
-                            if chunk.get("done"):
-                                break
         except httpx.HTTPError:
-            error_detail = "Ollama is not reachable. Make sure it is running."
+            error_detail = "Could not connect to Gemini. Check your network and try again."
 
         reply_text = "".join(parts).strip()
         if not reply_text:
             yield _sse(
                 "error",
-                {"detail": error_detail or "Ollama returned an empty reply"},
+                {"detail": error_detail or "Gemini returned an empty reply"},
             )
             return
 

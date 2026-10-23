@@ -46,8 +46,7 @@ class ChatReply(BaseModel):
     assistant_message: ChatMessageOut
 
 
-class OllamaStatus(BaseModel):
+class AIStatus(BaseModel):
     available: bool
     model: str
-    models: list[str] = []
     detail: str | None = None
