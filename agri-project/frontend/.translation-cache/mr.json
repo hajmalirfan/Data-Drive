@@ -160,10 +160,7 @@
   "login.createAccountLink": "खाते तयार करा",
   "login.fullName": "पूर्ण नाव",
   "login.fullNamePlaceholder": "तुमचे पूर्ण नाव एंटर करा",
-  "login.mobile": "मोबाईल नंबर",
   "login.passwordNewPlaceholder": "किमान 6 वर्ण",
-  "login.villageTown": "गाव / शहर",
-  "login.villagePlaceholder": "उदा. थेनी, तामिळनाडू",
   "login.iAmA": "मी ए",
   "login.creatingAccount": "खाते तयार करत आहे...",
   "login.createAccountBtn": "खाते तयार करा",
@@ -175,7 +172,6 @@
   "login.errPassword": "पासवर्ड किमान 6 वर्णांचा असणे आवश्यक आहे.",
   "login.errSignin": "साइन इन करू शकलो नाही. कृपया तुमचे तपशील तपासा.",
   "login.errFullName": "तुमचे पूर्ण नाव एंटर करा.",
-  "login.errMobile": "एक वैध मोबाइल नंबर प्रविष्ट करा.",
   "login.errSignup": "तुमचे खाते तयार करू शकलो नाही.",
   "login.roleFarmer": "शेतकरी",
   "login.roleFarmerHint": "पिकांची विक्री करा",
@@ -706,6 +702,8 @@
   "chatOpen": "गप्पा उघडा",
   "login.confirmPassword": "Confirm Password",
   "login.confirmPasswordPlaceholder": "Re-enter your password",
-  "login.errLocation": "Enter your village or town.",
-  "login.errPasswordMismatch": "Passwords do not match."
+  "login.errPasswordMismatch": "Passwords do not match.",
+  "login.email": "Email",
+  "login.emailPlaceholder": "you@example.com",
+  "login.errEmail": "Enter a valid email address."
 }

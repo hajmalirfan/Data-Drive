@@ -23,6 +23,15 @@ export const signup = (payload) =>
 export const login = (identifier, password) =>
   api.post('/api/auth/login', { identifier, password }).then((r) => r.data)
 
+export const forgotPassword = (email) =>
+  api.post('/api/auth/forgot-password', { email }).then((r) => r.data)
+
+export const verifyResetOtp = (email, otp) =>
+  api.post('/api/auth/verify-otp', { email, otp }).then((r) => r.data)
+
+export const resetPassword = (resetToken, newPassword) =>
+  api.post('/api/auth/reset-password', { reset_token: resetToken, new_password: newPassword }).then((r) => r.data)
+
 export const fetchMe = () => api.get('/api/auth/me').then((r) => r.data)
 
 export const updateProfile = (payload) =>

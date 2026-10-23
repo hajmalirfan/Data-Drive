@@ -1,4 +1,5 @@
 from .user import User
+from .password_reset import PasswordResetOTP
 from .chat import Conversation, ChatMessage
 from .operations import (
     Booking,
@@ -11,6 +12,7 @@ from .operations import (
 
 __all__ = [
     "User",
+    "PasswordResetOTP",
     "Conversation",
     "ChatMessage",
     "Booking",

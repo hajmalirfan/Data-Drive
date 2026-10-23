@@ -160,10 +160,7 @@
   "login.createAccountLink": "ఖాతాను సృష్టించండి",
   "login.fullName": "పూర్తి పేరు",
   "login.fullNamePlaceholder": "మీ పూర్తి పేరును నమోదు చేయండి",
-  "login.mobile": "మొబైల్ నంబర్",
   "login.passwordNewPlaceholder": "కనీసం 6 అక్షరాలు",
-  "login.villageTown": "గ్రామం / పట్టణం",
-  "login.villagePlaceholder": "ఉదా తేని, తమిళనాడు",
   "login.iAmA": "నేను ఒక",
   "login.creatingAccount": "ఖాతాను సృష్టిస్తోంది...",
   "login.createAccountBtn": "ఖాతాను సృష్టించండి",
@@ -175,7 +172,6 @@
   "login.errPassword": "పాస్‌వర్డ్ తప్పనిసరిగా కనీసం 6 అక్షరాలు ఉండాలి.",
   "login.errSignin": "సైన్ ఇన్ చేయడం సాధ్యపడలేదు. దయచేసి మీ వివరాలను తనిఖీ చేయండి.",
   "login.errFullName": "మీ పూర్తి పేరును నమోదు చేయండి.",
-  "login.errMobile": "చెల్లుబాటు అయ్యే మొబైల్ నంబర్‌ను నమోదు చేయండి.",
   "login.errSignup": "మీ ఖాతాను సృష్టించడం సాధ్యపడలేదు.",
   "login.roleFarmer": "రైతు",
   "login.roleFarmerHint": "పంటలు అమ్మండి",
@@ -706,6 +702,8 @@
   "chatOpen": "చాట్ తెరవండి",
   "login.confirmPassword": "Confirm Password",
   "login.confirmPasswordPlaceholder": "Re-enter your password",
-  "login.errLocation": "Enter your village or town.",
-  "login.errPasswordMismatch": "Passwords do not match."
+  "login.errPasswordMismatch": "Passwords do not match.",
+  "login.email": "Email",
+  "login.emailPlaceholder": "you@example.com",
+  "login.errEmail": "Enter a valid email address."
 }

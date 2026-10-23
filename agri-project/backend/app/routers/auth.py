@@ -1,10 +1,23 @@
+import math
 import re
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from typing import List
+from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import hash_password, verify_password, create_access_token, decode_token
+from app.core.email import send_password_reset_email, email_configured
+from app.core.security import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    decode_token,
+    generate_otp,
+    hash_otp,
+    otp_matches,
+)
+from app.models.password_reset import PasswordResetOTP
 from app.models.user import User, VALID_ROLES
 from app.schemas.user import (
     UserSignup,
@@ -13,6 +26,12 @@ from app.schemas.user import (
     UserOut,
     UserProfileUpdate,
     UserRoleUpdate,
+    ForgotPasswordRequest,
+    VerifyOtpRequest,
+    ResetPasswordRequest,
+    ForgotPasswordResponse,
+    VerifyOtpResponse,
+    MessageResponse,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -117,6 +136,151 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
         db.refresh(user)
     token = create_access_token({"sub": user.email, "role": user.role})
     return {"access_token": token, "token_type": "bearer", "user": user}
+
+@router.post("/forgot-password", response_model=ForgotPasswordResponse)
+def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """Send a one-time code to the account email for password reset."""
+    email = data.email.lower().strip()
+    now = datetime.utcnow()
+
+    # Housekeeping: remove OTP rows that expired more than a day ago.
+    db.query(PasswordResetOTP).filter(
+        PasswordResetOTP.expires_at < now - timedelta(days=1)
+    ).delete(synchronize_session=False)
+
+    latest = (
+        db.query(PasswordResetOTP)
+        .filter(
+            PasswordResetOTP.email == email,
+            PasswordResetOTP.consumed.is_(False),
+            PasswordResetOTP.expires_at > now,
+        )
+        .order_by(PasswordResetOTP.created_at.desc(), PasswordResetOTP.id.desc())
+        .first()
+    )
+    if latest and latest.created_at:
+        elapsed = (now - latest.created_at).total_seconds()
+        if elapsed < settings.OTP_RESEND_SECONDS:
+            wait = max(1, math.ceil(settings.OTP_RESEND_SECONDS - elapsed))
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Please wait {wait} seconds before requesting a new code.",
+            )
+
+    # Invalidate any older unused codes for this email.
+    db.query(PasswordResetOTP).filter(
+        PasswordResetOTP.email == email,
+        PasswordResetOTP.consumed.is_(False),
+    ).update({PasswordResetOTP.consumed: True}, synchronize_session=False)
+
+    otp = generate_otp()
+    record = PasswordResetOTP(
+        email=email,
+        otp_hash=hash_otp(email, otp),
+        expires_at=now + timedelta(minutes=settings.OTP_EXPIRE_MINUTES),
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+
+    user = db.query(User).filter(User.email == email).first()
+    if user:
+        send_password_reset_email(user.email, user.full_name, otp, settings.OTP_EXPIRE_MINUTES)
+
+    # Never reveal whether an account exists. When no email provider is
+    # configured the code is returned so the flow remains testable locally.
+    debug_otp = None if email_configured() else otp
+    return {
+        "message": "If that email is registered, a verification code has been sent.",
+        "expires_in": settings.OTP_EXPIRE_MINUTES * 60,
+        "resend_in": settings.OTP_RESEND_SECONDS,
+        "debug_otp": debug_otp,
+    }
+
+
+@router.post("/verify-otp", response_model=VerifyOtpResponse)
+def verify_otp(data: VerifyOtpRequest, db: Session = Depends(get_db)):
+    """Verify the emailed OTP and return a short-lived password reset token."""
+    email = data.email.lower().strip()
+    now = datetime.utcnow()
+
+    record = (
+        db.query(PasswordResetOTP)
+        .filter(
+            PasswordResetOTP.email == email,
+            PasswordResetOTP.consumed.is_(False),
+            PasswordResetOTP.expires_at > now,
+        )
+        .order_by(PasswordResetOTP.created_at.desc(), PasswordResetOTP.id.desc())
+        .first()
+    )
+    if not record:
+        raise HTTPException(
+            status_code=400,
+            detail="This code is invalid or has expired. Request a new one.",
+        )
+    if record.attempts >= settings.OTP_MAX_ATTEMPTS:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many incorrect attempts. Request a new code.",
+        )
+    if not otp_matches(email, data.otp, record.otp_hash):
+        record.attempts += 1
+        db.commit()
+        raise HTTPException(status_code=400, detail="Incorrect verification code.")
+
+    if not db.query(User).filter(User.email == email).first():
+        raise HTTPException(
+            status_code=400,
+            detail="This code is invalid or has expired. Request a new one.",
+        )
+
+    record.consumed = True
+    db.commit()
+
+    reset_token = create_access_token(
+        {"sub": email, "purpose": "password_reset", "otp_id": record.id},
+        expires_delta=timedelta(minutes=settings.RESET_TOKEN_EXPIRE_MINUTES),
+    )
+    return {"message": "Code verified.", "reset_token": reset_token}
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Set a new password using the token issued after OTP verification."""
+    payload = decode_token(data.reset_token)
+    if (
+        not payload
+        or payload.get("purpose") != "password_reset"
+        or not payload.get("sub")
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="This reset session has expired. Start the forgot-password process again.",
+        )
+
+    email = str(payload["sub"]).lower().strip()
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(
+            status_code=400,
+            detail="This reset session is no longer valid.",
+        )
+
+    if verify_password(data.new_password, user.hashed_password):
+        raise HTTPException(
+            status_code=400,
+            detail="Choose a password that is different from your current one.",
+        )
+
+    user.hashed_password = hash_password(data.new_password)
+    db.query(PasswordResetOTP).filter(
+        PasswordResetOTP.email == email,
+        PasswordResetOTP.consumed.is_(False),
+    ).update({PasswordResetOTP.consumed: True}, synchronize_session=False)
+    db.commit()
+    return {"message": "Password updated. You can now sign in."}
+
 
 @router.get("/me", response_model=UserOut)
 def me(current_user: User = Depends(get_current_user)):

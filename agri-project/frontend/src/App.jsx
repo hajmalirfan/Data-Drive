@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { LanguageProvider } from './context/LanguageContext'
 import AppShell from './components/AppShell'
 import Login from './pages/Login'
+import ForgotPassword from './pages/ForgotPassword'
 import Dashboard from './pages/Dashboard'
 import Crops from './pages/Crops'
 import MarketPrices from './pages/MarketPrices'
@@ -41,6 +42,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<RootRedirect />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route element={<ProtectedLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/crops" element={<Crops />} />

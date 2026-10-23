@@ -23,8 +23,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [fullName, setFullName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [location, setLocation] = useState('')
+  const [email, setEmail] = useState('')
   const [role, setRole] = useState('farmer')
   const [showPw, setShowPw] = useState(false)
   const [showConfirmPw, setShowConfirmPw] = useState(false)
@@ -69,13 +68,13 @@ export default function Login() {
     event.preventDefault()
     setError('')
     setSuccess('')
-    const digits = phone.replace(/\D/g, '')
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (fullName.trim().length < 2) {
       setError(t('login.errFullName'))
       return
     }
-    if (digits.length < 7) {
-      setError(t('login.errMobile'))
+    if (!emailPattern.test(email.trim())) {
+      setError(t('login.errEmail'))
       return
     }
     if (password.length < 6) {
@@ -86,18 +85,13 @@ export default function Login() {
       setError(t('login.errPasswordMismatch'))
       return
     }
-    if (!location.trim()) {
-      setError(t('login.errLocation'))
-      return
-    }
     setLoading(true)
     try {
       const data = await apiSignup({
         full_name: fullName.trim(),
-        phone: phone.trim(),
+        email: email.trim(),
         password,
         role,
-        location: location.trim(),
       })
       saveAuth(data)
       navigate('/dashboard', { replace: true })
@@ -199,9 +193,9 @@ export default function Login() {
                 <button
                   type="button"
                   className="auth-forgot"
-                  onClick={() => setSuccess(t('login.forgotMessage'))}
+                  onClick={() => navigate('/forgot-password')}
                 >
-                  Forgot Password?
+                  {t('login.forgot')}
                 </button>
               </div>
 
@@ -236,16 +230,16 @@ export default function Login() {
               </label>
 
               <label className="auth-field">
-                <span className="auth-label">{t('login.mobile')}<span className="auth-required">*</span></span>
+                <span className="auth-label">{t('login.email')}<span className="auth-required">*</span></span>
                 <span className="auth-input">
-                  <span className="auth-input-icon"><Icon name="phone" size={16} /></span>
+                  <span className="auth-input-icon"><Icon name="mail" size={16} /></span>
                   <input
-                    type="tel"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    placeholder="98765 43210"
-                    value={phone}
-                    onChange={(event) => setPhone(event.target.value)}
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    placeholder={t('login.emailPlaceholder')}
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
                   />
                 </span>
               </label>
@@ -291,20 +285,6 @@ export default function Login() {
                   >
                     <Icon name={showConfirmPw ? 'eyeOff' : 'eye'} size={16} />
                   </button>
-                </span>
-              </label>
-
-              <label className="auth-field">
-                <span className="auth-label">{t('login.villageTown')}<span className="auth-required">*</span></span>
-                <span className="auth-input">
-                  <span className="auth-input-icon"><Icon name="markets" size={16} /></span>
-                  <input
-                    type="text"
-                    autoComplete="address-level2"
-                    placeholder={t('login.villagePlaceholder')}
-                    value={location}
-                    onChange={(event) => setLocation(event.target.value)}
-                  />
                 </span>
               </label>
 

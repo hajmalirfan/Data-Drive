@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import Base, engine
-from app.models import chat, operations, user  # noqa: F401 - register models
+from app.models import chat, operations, password_reset, user  # noqa: F401 - register models
 from app.routers import auth, bookings, chat as chat_router, crops, dashboard, markets, trucks
 
 

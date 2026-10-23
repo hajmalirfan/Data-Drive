@@ -160,10 +160,7 @@
   "login.createAccountLink": "ஒரு கணக்கை உருவாக்கவும்",
   "login.fullName": "முழுப் பெயர்",
   "login.fullNamePlaceholder": "உங்கள் முழுப் பெயரை உள்ளிடவும்",
-  "login.mobile": "மொபைல் எண்",
   "login.passwordNewPlaceholder": "குறைந்தது 6 எழுத்துகள்",
-  "login.villageTown": "கிராமம் / நகரம்",
-  "login.villagePlaceholder": "எ.கா. தேனி, தமிழ்நாடு",
   "login.iAmA": "நான் ஒரு",
   "login.creatingAccount": "கணக்கை உருவாக்குகிறது...",
   "login.createAccountBtn": "கணக்கை உருவாக்கவும்",
@@ -175,7 +172,6 @@
   "login.errPassword": "கடவுச்சொல் குறைந்தது 6 எழுத்துகளாக இருக்க வேண்டும்.",
   "login.errSignin": "உள்நுழைய முடியவில்லை. உங்கள் விவரங்களைச் சரிபார்க்கவும்.",
   "login.errFullName": "உங்கள் முழுப் பெயரை உள்ளிடவும்.",
-  "login.errMobile": "சரியான மொபைல் எண்ணை உள்ளிடவும்.",
   "login.errSignup": "உங்கள் கணக்கை உருவாக்க முடியவில்லை.",
   "login.roleFarmer": "விவசாயி",
   "login.roleFarmerHint": "பயிர்களை விற்கவும்",
@@ -706,6 +702,8 @@
   "chatOpen": "அரட்டையைத் திறக்கவும்",
   "login.confirmPassword": "Confirm Password",
   "login.confirmPasswordPlaceholder": "Re-enter your password",
-  "login.errLocation": "Enter your village or town.",
-  "login.errPasswordMismatch": "Passwords do not match."
+  "login.errPasswordMismatch": "Passwords do not match.",
+  "login.email": "Email",
+  "login.emailPlaceholder": "you@example.com",
+  "login.errEmail": "Enter a valid email address."
 }

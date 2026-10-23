@@ -19,6 +19,27 @@ class Settings(BaseSettings):
     PACKAGING_COST_PER_KG: float = 0.25
     STALE_PRICE_HOURS: int = 48
 
+    # Password reset / OTP
+    OTP_EXPIRE_MINUTES: int = 10
+    OTP_RESEND_SECONDS: int = 60
+    OTP_MAX_ATTEMPTS: int = 5
+    RESET_TOKEN_EXPIRE_MINUTES: int = 15
+
+    # Mailtrap Email Sending API (takes priority when the token is set)
+    MAILTRAP_API_TOKEN: str = "77a58208f2e3d0a4c310f600c64bad43"
+    MAILTRAP_API_URL: str = "https://send.api.mailtrap.io/api/send"
+    MAILTRAP_FROM_EMAIL: str = "SmartAgopsAdvisor@demomailtrap.co"
+    MAILTRAP_FROM_NAME: str = "SmartAg Ops Advisor"
+
+    # SMTP fallback (leave SMTP_HOST empty to log OTPs to the console in local dev)
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""
+    SMTP_USE_TLS: bool = True
+    SMTP_USE_SSL: bool = False
+
     class Config:
         env_file = ".env"
 

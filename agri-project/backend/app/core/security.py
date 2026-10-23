@@ -1,3 +1,6 @@
+import hashlib
+import hmac
+import secrets
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -22,3 +25,18 @@ def decode_token(token: str):
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     except JWTError:
         return None
+
+
+def generate_otp(length: int = 6) -> str:
+    """Generate a cryptographically secure numeric OTP."""
+    return "".join(str(secrets.randbelow(10)) for _ in range(length))
+
+
+def hash_otp(email: str, otp: str) -> str:
+    """Keyed hash so stored OTPs cannot be reversed from the database alone."""
+    message = f"{email.strip().lower()}:{otp.strip()}".encode("utf-8")
+    return hmac.new(settings.SECRET_KEY.encode("utf-8"), message, hashlib.sha256).hexdigest()
+
+
+def otp_matches(email: str, otp: str, hashed: str) -> bool:
+    return hmac.compare_digest(hash_otp(email, otp), hashed)

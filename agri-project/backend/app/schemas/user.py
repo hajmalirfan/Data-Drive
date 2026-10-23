@@ -49,3 +49,28 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class VerifyOtpRequest(BaseModel):
+    email: EmailStr
+    otp: str = Field(min_length=4, max_length=8, pattern=r"^\d{4,8}$")
+
+class ResetPasswordRequest(BaseModel):
+    reset_token: str = Field(min_length=10)
+    new_password: str = Field(min_length=6, max_length=128)
+
+class ForgotPasswordResponse(BaseModel):
+    message: str
+    expires_in: int
+    resend_in: int
+    # Only populated when SMTP is not configured (local development).
+    debug_otp: str | None = None
+
+class VerifyOtpResponse(BaseModel):
+    message: str
+    reset_token: str
+
+class MessageResponse(BaseModel):
+    message: str

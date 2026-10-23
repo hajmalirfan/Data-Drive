@@ -160,10 +160,7 @@
   "login.createAccountLink": "ਅਕਾਉਂਟ ਬਣਾਓ",
   "login.fullName": "ਪੂਰਾ ਨਾਂਮ",
   "login.fullNamePlaceholder": "ਆਪਣਾ ਪੂਰਾ ਨਾਮ ਦਰਜ ਕਰੋ",
-  "login.mobile": "ਮੋਬਾਇਲ ਨੰਬਰ",
   "login.passwordNewPlaceholder": "ਘੱਟੋ-ਘੱਟ 6 ਅੱਖਰ",
-  "login.villageTown": "ਪਿੰਡ/ਕਸਬਾ",
-  "login.villagePlaceholder": "ਜਿਵੇਂ ਕਿ ਥੇਨੀ, ਤਾਮਿਲਨਾਡੂ",
   "login.iAmA": "ਮੈਂ ਏ",
   "login.creatingAccount": "ਖਾਤਾ ਬਣਾਇਆ ਜਾ ਰਿਹਾ ਹੈ...",
   "login.createAccountBtn": "ਖਾਤਾ ਬਣਾਉ",
@@ -175,7 +172,6 @@
   "login.errPassword": "ਪਾਸਵਰਡ ਘੱਟੋ-ਘੱਟ 6 ਅੱਖਰਾਂ ਦਾ ਹੋਣਾ ਚਾਹੀਦਾ ਹੈ।",
   "login.errSignin": "ਸਾਈਨ ਇਨ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ। ਕਿਰਪਾ ਕਰਕੇ ਆਪਣੇ ਵੇਰਵਿਆਂ ਦੀ ਜਾਂਚ ਕਰੋ।",
   "login.errFullName": "ਆਪਣਾ ਪੂਰਾ ਨਾਮ ਦਰਜ ਕਰੋ।",
-  "login.errMobile": "ਇੱਕ ਵੈਧ ਮੋਬਾਈਲ ਨੰਬਰ ਦਾਖਲ ਕਰੋ।",
   "login.errSignup": "ਤੁਹਾਡਾ ਖਾਤਾ ਨਹੀਂ ਬਣਾਇਆ ਜਾ ਸਕਿਆ।",
   "login.roleFarmer": "ਕਿਸਾਨ",
   "login.roleFarmerHint": "ਫਸਲਾਂ ਵੇਚੋ",
@@ -706,6 +702,8 @@
   "chatOpen": "ਚੈਟ ਖੋਲ੍ਹੋ",
   "login.confirmPassword": "Confirm Password",
   "login.confirmPasswordPlaceholder": "Re-enter your password",
-  "login.errLocation": "Enter your village or town.",
-  "login.errPasswordMismatch": "Passwords do not match."
+  "login.errPasswordMismatch": "Passwords do not match.",
+  "login.email": "Email",
+  "login.emailPlaceholder": "you@example.com",
+  "login.errEmail": "Enter a valid email address."
 }
