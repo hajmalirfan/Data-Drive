@@ -400,13 +400,11 @@
   box-shadow: 0 0 0 2px rgba(31, 138, 76, 0.08);
 }
 .auth-role.active svg { color: #1f8a4c; }
-.auth-role:last-child:nth-child(odd) { grid-column: span 2; }
 .auth-role-hint {
   font-size: 9.5px;
   color: #93a097;
   font-weight: 600;
 }
-
 /* Forgot password flow */
 .auth-steps {
   display: flex;

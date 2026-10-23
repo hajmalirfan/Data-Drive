@@ -9,15 +9,13 @@ import farmerImage from '../assets/farmer-logo.jpg'
 import './Login.css'
 import { useLanguage } from '../context/LanguageContext'
 
-const ROLE_CHOICES = [
+const SIGNUP_ROLES = [
   { value: 'farmer', labelKey: 'role.farmer', hintKey: 'login.roleFarmerHint', icon: 'crops' },
   { value: 'truck_operator', labelKey: 'role.truckOperator', hintKey: 'login.roleOperatorHint', icon: 'truck' },
-  { value: 'market_manager', labelKey: 'login.roleManager', hintKey: 'login.roleManagerHint', icon: 'prices' },
-  { value: 'buyer', labelKey: 'login.roleBuyer', hintKey: 'login.roleBuyerHint', icon: 'markets' },
 ]
 
 export default function Login() {
-  const { t, statusLabel, roleLabel } = useLanguage()
+  const { t } = useLanguage()
   const [mode, setMode] = useState('signin')
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
@@ -101,8 +99,6 @@ export default function Login() {
       setLoading(false)
     }
   }
-
-  const activeRole = ROLE_CHOICES.find((item) => item.value === role)
 
   return (
     <div className="auth-page">
@@ -291,19 +287,22 @@ export default function Login() {
               <div className="auth-role-field">
                 <span className="auth-label">{t('login.iAmA')}<span className="auth-required">*</span></span>
                 <div className="auth-roles">
-                  {ROLE_CHOICES.map((item) => (
+                  {SIGNUP_ROLES.map((item) => (
                     <button
                       key={item.value}
                       type="button"
                       className={`auth-role ${role === item.value ? 'active' : ''}`}
                       onClick={() => setRole(item.value)}
+                      aria-pressed={role === item.value}
                     >
                       <Icon name={item.icon} size={15} />
                       <span>{t(item.labelKey)}</span>
                     </button>
                   ))}
                 </div>
-                <p className="auth-role-hint">{activeRole ? t(activeRole.hintKey) : ''}</p>
+                <p className="auth-role-hint">
+                  {t(SIGNUP_ROLES.find((item) => item.value === role).hintKey)}
+                </p>
               </div>
 
               {error && <div className="ui-alert ui-alert-error" role="alert">{error}</div>}
