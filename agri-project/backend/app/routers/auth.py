@@ -45,9 +45,8 @@ def require_roles(*allowed_roles: str):
 
 # Convenience dependencies
 require_admin = require_roles("admin")
-require_fpo = require_roles("fpo", "admin")
 require_marketer = require_roles("marketer", "admin")
-require_farmer = require_roles("farmer", "fpo", "marketer", "admin")
+require_farmer = require_roles("farmer", "marketer", "admin")
 require_truck_operator = require_roles("truck_operator", "admin")
 require_price_manager = require_roles("market_manager", "admin")
 
@@ -173,11 +172,6 @@ def update_user_role(user_id: int, data: UserRoleUpdate, db: Session = Depends(g
 @router.get("/farmer-area")
 def farmer_area(_u: User = Depends(require_roles("farmer", "admin"))):
     return {"message": f"Hello {_u.email} (role={_u.role}). Farmer area accessed."}
-
-
-@router.get("/fpo-area")
-def fpo_area(_u: User = Depends(require_roles("fpo", "admin"))):
-    return {"message": f"Hello {_u.email} (role={_u.role}). FPO area accessed."}
 
 
 @router.get("/marketer-area")

@@ -71,7 +71,6 @@
   "status.closed": "बंद",
   "role.farmer": "शेतकरी",
   "role.truckOperator": "ट्रक ऑपरेटर",
-  "role.fpo": "FPO",
   "role.marketManager": "बाजार भाव व्यवस्थापक",
   "role.admin": "ॲडमिन",
   "role.buyer": "खरेदीदार / सामान्य जनता",
@@ -182,7 +181,6 @@
   "login.roleFarmerHint": "पिकांची विक्री करा",
   "login.roleOperator": "ट्रक ऑपरेटर",
   "login.roleOperatorHint": "कापणी हलवा",
-  "login.roleFpoHint": "सामूहिक विक्री",
   "login.roleManager": "किंमत व्यवस्थापक",
   "login.roleManagerHint": "मंडीचे दर जाहीर करा",
   "login.roleBuyer": "सामान्य जनता / खरेदीदार",
@@ -658,7 +656,6 @@
   "profile.mobileSignin": "मोबाइल साइन इन",
   "profile.mobileSigninSub": "तुम्ही तुमच्या मोबाईल नंबर आणि पासवर्डने कोणत्याही डिव्हाइसवरून साइन इन करू शकता.",
   "profile.hintFarmer": "पीक साठा सूचीबद्ध करा, मंडईंची तुलना करा आणि सामायिक वाहतूक बुक करा.",
-  "profile.hintFpo": "एकूण सदस्य उत्पादन आणि बाजार सहली समन्वय.",
   "profile.hintTruckOperator": "ट्रकची क्षमता प्रकाशित करा आणि थेट स्थानांसह सहली अद्यतनित करा.",
   "profile.hintMarketManager": "तुमच्या बाजारासाठी टाइम-स्टॅम्प केलेल्या मंडी किमती प्रकाशित करा.",
   "profile.hintBuyer": "तुम्ही खरेदी करण्यापूर्वी बाजार आणि नवीनतम किमती एक्सप्लोर करा.",
@@ -706,5 +703,9 @@
   "chatHint": "AI चुका करू शकते. महत्त्वाच्या माहितीची पडताळणी करा.",
   "chatCardT": "एआय सहाय्यक",
   "chatCardD": "शेतीविषयक प्रश्न विचारा आणि तुमच्या स्थानिक ओलामा मॉडेलकडून त्वरित मार्गदर्शन मिळवा.",
-  "chatOpen": "गप्पा उघडा"
+  "chatOpen": "गप्पा उघडा",
+  "login.confirmPassword": "Confirm Password",
+  "login.confirmPasswordPlaceholder": "Re-enter your password",
+  "login.errLocation": "Enter your village or town.",
+  "login.errPasswordMismatch": "Passwords do not match."
 }

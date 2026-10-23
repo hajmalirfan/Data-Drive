@@ -1,4 +1,5 @@
 import { useLanguage } from '../context/LanguageContext'
+import Icon from './Icons'
 import './LanguageSelector.css'
 
 export default function LanguageSelector({ compact = false }) {
@@ -6,7 +7,7 @@ export default function LanguageSelector({ compact = false }) {
 
   return (
     <label className={`lang-select ${compact ? 'is-compact' : ''}`} title={t('language')}>
-      <span className="lang-globe" aria-hidden="true">🌐</span>
+      <span className="lang-globe" aria-hidden="true"><Icon name="globe" size={15} /></span>
       {!compact && <span className="lang-label">{t('language')}</span>}
       <select
         value={lang}

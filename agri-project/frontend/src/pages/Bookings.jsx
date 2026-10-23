@@ -44,7 +44,7 @@ const NEXT_STEP = {
 }
 export default function Bookings() {
   const { t, statusLabel, roleLabel } = useLanguage()
-  const { isAdmin, isTruckOperator, isFarmer, isFpo, isMarketer } = useAuth()
+  const { isAdmin, isTruckOperator, isFarmer, isMarketer } = useAuth()
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -58,7 +58,7 @@ export default function Bookings() {
   const [saving, setSaving] = useState(false)
 
   const canOperate = isAdmin || isTruckOperator
-  const canOwn = isAdmin || isFarmer || isFpo || isMarketer
+  const canOwn = isAdmin || isFarmer || isMarketer
 
   const load = () => {
     setLoading(true)

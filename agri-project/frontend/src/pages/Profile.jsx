@@ -8,7 +8,6 @@ import { useLanguage } from '../context/LanguageContext'
 
 const ROLE_HINTS = {
   farmer: 'profile.hintFarmer',
-  fpo: 'profile.hintFpo',
   truck_operator: 'profile.hintTruckOperator',
   market_manager: 'profile.hintMarketManager',
   buyer: 'profile.hintBuyer',

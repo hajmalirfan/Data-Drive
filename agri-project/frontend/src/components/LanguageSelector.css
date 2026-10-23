@@ -22,7 +22,7 @@
   cursor: pointer;
   max-width: 160px;
 }
-.lang-globe { font-size: 15px; line-height: 1; }
+.lang-globe { display: inline-flex; align-items: center; line-height: 1; color: #157347; }
 .lang-label { color: var(--text-muted); font-weight: 600; }
 
 /* Compact variant for tight topbars */

@@ -71,7 +71,6 @@
   "status.closed": "बंद किया हुआ",
   "role.farmer": "किसान",
   "role.truckOperator": "ट्रक संचालक",
-  "role.fpo": "एफपीओ",
   "role.marketManager": "बाज़ार मूल्य प्रबंधक",
   "role.admin": "व्यवस्थापक",
   "role.buyer": "क्रेता/आम जनता",
@@ -182,7 +181,6 @@
   "login.roleFarmerHint": "फसल बेचें",
   "login.roleOperator": "ट्रक संचालक",
   "login.roleOperatorHint": "फ़सलों को स्थानांतरित करें",
-  "login.roleFpoHint": "सामूहिक बिक्री",
   "login.roleManager": "मूल्य प्रबंधक",
   "login.roleManagerHint": "मंडी दरें प्रकाशित करें",
   "login.roleBuyer": "आम जनता/क्रेता",
@@ -658,7 +656,6 @@
   "profile.mobileSignin": "मोबाइल साइन-इन",
   "profile.mobileSigninSub": "आप किसी भी डिवाइस से अपने मोबाइल नंबर और पासवर्ड से साइन इन कर सकते हैं।",
   "profile.hintFarmer": "फसल स्टॉक की सूची बनाएं, मंडियों की तुलना करें और साझा परिवहन बुक करें।",
-  "profile.hintFpo": "समग्र सदस्य उत्पादन करें और बाज़ार दौरों का समन्वय करें।",
   "profile.hintTruckOperator": "ट्रक की क्षमता प्रकाशित करें और लाइव स्थानों के साथ यात्राएं अपडेट करें।",
   "profile.hintMarketManager": "अपने बाज़ार के लिए समय-मुद्रांकित मंडी मूल्य प्रकाशित करें।",
   "profile.hintBuyer": "खरीदने से पहले बाज़ारों और नवीनतम कीमतों का अन्वेषण करें।",
@@ -706,5 +703,9 @@
   "chatHint": "एआई गलतियाँ कर सकता है। महत्वपूर्ण जानकारी सत्यापित करें.",
   "chatCardT": "एआई सहायक",
   "chatCardD": "खेती से संबंधित प्रश्न पूछें और अपने स्थानीय ओलामा मॉडल से तुरंत मार्गदर्शन प्राप्त करें।",
-  "chatOpen": "चैट खोलें"
+  "chatOpen": "चैट खोलें",
+  "login.confirmPassword": "Confirm Password",
+  "login.confirmPasswordPlaceholder": "Re-enter your password",
+  "login.errLocation": "Enter your village or town.",
+  "login.errPasswordMismatch": "Passwords do not match."
 }

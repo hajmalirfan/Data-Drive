@@ -71,7 +71,6 @@
   "status.closed": "ਬੰਦ",
   "role.farmer": "ਕਿਸਾਨ",
   "role.truckOperator": "ਟਰੱਕ ਆਪਰੇਟਰ",
-  "role.fpo": "FPO",
   "role.marketManager": "ਮਾਰਕੀਟ ਕੀਮਤ ਮੈਨੇਜਰ",
   "role.admin": "ਐਡਮਿਨ",
   "role.buyer": "ਖਰੀਦਦਾਰ / ਆਮ ਜਨਤਾ",
@@ -137,7 +136,7 @@
   "login.benefitPrices": "ਲਾਈਵ ਮੰਡੀ ਦੀਆਂ ਕੀਮਤਾਂ",
   "login.benefitTrucks": "ਸ਼ੇਅਰਡ ਟਰੱਕ ਬੁਕਿੰਗ",
   "login.benefitTracking": "ਲਾਈਵ ਟ੍ਰਿਪ ਟ੍ਰੈਕਿੰਗ",
-  "login.heroFoot": "ਕਿਸਾਨਾਂ, FPO ਅਤੇ ਟਰਾਂਸਪੋਰਟ ਆਪਰੇਟਰਾਂ ਲਈ ਬਣਾਇਆ ਗਿਆ",
+  "login.heroFoot": "Built for farmers and transport operators",
   "login.welcomeBack": "ਵਾਪਸ ਸਵਾਗਤ!",
   "login.createAccountTitle": "ਆਪਣਾ ਖਾਤਾ ਬਣਾਓ",
   "login.signinSub": "ਆਪਣੇ ਫਾਰਮ ਡੈਸ਼ਬੋਰਡ 'ਤੇ ਜਾਰੀ ਰੱਖਣ ਲਈ ਲੌਗ ਇਨ ਕਰੋ।",
@@ -182,7 +181,6 @@
   "login.roleFarmerHint": "ਫਸਲਾਂ ਵੇਚੋ",
   "login.roleOperator": "ਟਰੱਕ ਆਪਰੇਟਰ",
   "login.roleOperatorHint": "ਵਾਢੀ ਹਿਲਾਓ",
-  "login.roleFpoHint": "ਸਮੂਹਿਕ ਵਿਕਰੀ",
   "login.roleManager": "ਕੀਮਤ ਪ੍ਰਬੰਧਕ",
   "login.roleManagerHint": "ਮੰਡੀ ਦੇ ਰੇਟ ਪ੍ਰਕਾਸ਼ਿਤ ਕਰੋ",
   "login.roleBuyer": "ਆਮ ਜਨਤਾ / ਖਰੀਦਦਾਰ",
@@ -658,7 +656,6 @@
   "profile.mobileSignin": "ਮੋਬਾਈਲ ਸਾਈਨ-ਇਨ",
   "profile.mobileSigninSub": "ਤੁਸੀਂ ਕਿਸੇ ਵੀ ਡਿਵਾਈਸ ਤੋਂ ਆਪਣੇ ਮੋਬਾਈਲ ਨੰਬਰ ਅਤੇ ਪਾਸਵਰਡ ਨਾਲ ਸਾਈਨ ਇਨ ਕਰ ਸਕਦੇ ਹੋ।",
   "profile.hintFarmer": "ਫਸਲਾਂ ਦੇ ਸਟਾਕ ਦੀ ਸੂਚੀ ਬਣਾਓ, ਮੰਡੀਆਂ ਦੀ ਤੁਲਨਾ ਕਰੋ ਅਤੇ ਸ਼ੇਅਰਡ ਟ੍ਰਾਂਸਪੋਰਟ ਬੁੱਕ ਕਰੋ।",
-  "profile.hintFpo": "ਕੁੱਲ ਸਦੱਸ ਉਤਪਾਦਨ ਅਤੇ ਤਾਲਮੇਲ ਬਾਜ਼ਾਰ ਯਾਤਰਾਵਾਂ।",
   "profile.hintTruckOperator": "ਟਰੱਕ ਦੀ ਸਮਰੱਥਾ ਨੂੰ ਪ੍ਰਕਾਸ਼ਿਤ ਕਰੋ ਅਤੇ ਲਾਈਵ ਟਿਕਾਣਿਆਂ ਨਾਲ ਯਾਤਰਾਵਾਂ ਨੂੰ ਅਪਡੇਟ ਕਰੋ।",
   "profile.hintMarketManager": "ਆਪਣੇ ਬਜ਼ਾਰ ਲਈ ਸਮਾਂ-ਸਟੈਂਪ ਵਾਲੀਆਂ ਮੰਡੀ ਕੀਮਤਾਂ ਪ੍ਰਕਾਸ਼ਿਤ ਕਰੋ।",
   "profile.hintBuyer": "ਖਰੀਦਣ ਤੋਂ ਪਹਿਲਾਂ ਬਾਜ਼ਾਰਾਂ ਅਤੇ ਨਵੀਨਤਮ ਕੀਮਤਾਂ ਦੀ ਪੜਚੋਲ ਕਰੋ।",
@@ -706,5 +703,9 @@
   "chatHint": "AI ਗਲਤੀਆਂ ਕਰ ਸਕਦਾ ਹੈ। ਮਹੱਤਵਪੂਰਨ ਜਾਣਕਾਰੀ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ।",
   "chatCardT": "AI ਸਹਾਇਕ",
   "chatCardD": "ਖੇਤੀ ਸੰਬੰਧੀ ਸਵਾਲ ਪੁੱਛੋ ਅਤੇ ਆਪਣੇ ਸਥਾਨਕ ਓਲਾਮਾ ਮਾਡਲ ਤੋਂ ਤੁਰੰਤ ਮਾਰਗਦਰਸ਼ਨ ਪ੍ਰਾਪਤ ਕਰੋ।",
-  "chatOpen": "ਚੈਟ ਖੋਲ੍ਹੋ"
+  "chatOpen": "ਚੈਟ ਖੋਲ੍ਹੋ",
+  "login.confirmPassword": "Confirm Password",
+  "login.confirmPasswordPlaceholder": "Re-enter your password",
+  "login.errLocation": "Enter your village or town.",
+  "login.errPasswordMismatch": "Passwords do not match."
 }

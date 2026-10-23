@@ -71,7 +71,6 @@
   "status.closed": "બંધ",
   "role.farmer": "ખેડૂત",
   "role.truckOperator": "ટ્રક ઓપરેટર",
-  "role.fpo": "FPO",
   "role.marketManager": "બજાર ભાવ વ્યવસ્થાપક",
   "role.admin": "એડમિન",
   "role.buyer": "ખરીદનાર / સામાન્ય જનતા",
@@ -182,7 +181,6 @@
   "login.roleFarmerHint": "પાક વેચો",
   "login.roleOperator": "ટ્રક ઓપરેટર",
   "login.roleOperatorHint": "લણણી ખસેડો",
-  "login.roleFpoHint": "સામૂહિક વેચાણ",
   "login.roleManager": "પ્રાઇસ મેનેજર",
   "login.roleManagerHint": "મંડી દરો પ્રકાશિત કરો",
   "login.roleBuyer": "સામાન્ય જનતા / ખરીદનાર",
@@ -658,7 +656,6 @@
   "profile.mobileSignin": "મોબાઇલ સાઇન ઇન",
   "profile.mobileSigninSub": "તમે કોઈપણ ઉપકરણથી તમારા મોબાઇલ નંબર અને પાસવર્ડ સાથે સાઇન ઇન કરી શકો છો.",
   "profile.hintFarmer": "પાકના સ્ટોકની યાદી બનાવો, મંડીઓની તુલના કરો અને વહેંચાયેલ પરિવહન બુક કરો.",
-  "profile.hintFpo": "એકંદર સભ્ય ઉત્પાદન અને બજાર પ્રવાસોનું સંકલન.",
   "profile.hintTruckOperator": "ટ્રકની ક્ષમતા પ્રકાશિત કરો અને લાઇવ સ્થાનો સાથે ટ્રિપ્સ અપડેટ કરો.",
   "profile.hintMarketManager": "તમારા બજાર માટે સમય-સ્ટેમ્પ્ડ મંડી કિંમતો પ્રકાશિત કરો.",
   "profile.hintBuyer": "તમે ખરીદો તે પહેલાં બજારો અને નવીનતમ ભાવોનું અન્વેષણ કરો.",
@@ -706,5 +703,9 @@
   "chatHint": "AI ભૂલો કરી શકે છે. મહત્વપૂર્ણ માહિતી ચકાસો.",
   "chatCardT": "એઆઈ સહાયક",
   "chatCardD": "ખેતીના પ્રશ્નો પૂછો અને તમારા સ્થાનિક ઓલામા મોડલ પાસેથી ત્વરિત માર્ગદર્શન મેળવો.",
-  "chatOpen": "ચેટ ખોલો"
+  "chatOpen": "ચેટ ખોલો",
+  "login.confirmPassword": "Confirm Password",
+  "login.confirmPasswordPlaceholder": "Re-enter your password",
+  "login.errLocation": "Enter your village or town.",
+  "login.errPasswordMismatch": "Passwords do not match."
 }

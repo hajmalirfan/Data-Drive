@@ -1,8 +1,8 @@
 from sqlalchemy import Column, Integer, String, DateTime, func
 from app.core.database import Base
 
-# Valid roles: farmer, fpo, marketer, admin, truck_operator, market_manager, buyer
-VALID_ROLES = ("farmer", "fpo", "marketer", "admin", "truck_operator", "market_manager", "buyer")
+# Valid roles: farmer, marketer, admin, truck_operator, market_manager, buyer
+VALID_ROLES = ("farmer", "marketer", "admin", "truck_operator", "market_manager", "buyer")
 
 class User(Base):
     __tablename__ = "users"

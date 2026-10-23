@@ -5,74 +5,29 @@ import LanguageSelector from '../components/LanguageSelector'
 import BrandLogo from '../components/BrandLogo'
 import Icon from '../components/Icons'
 import { login as apiLogin, signup as apiSignup } from '../services/authService'
+import farmerImage from '../assets/farmer-logo.jpg'
 import './Login.css'
 import { useLanguage } from '../context/LanguageContext'
 
 const ROLE_CHOICES = [
   { value: 'farmer', labelKey: 'role.farmer', hintKey: 'login.roleFarmerHint', icon: 'crops' },
   { value: 'truck_operator', labelKey: 'role.truckOperator', hintKey: 'login.roleOperatorHint', icon: 'truck' },
-  { value: 'fpo', labelKey: 'role.fpo', hintKey: 'login.roleFpoHint', icon: 'profile' },
   { value: 'market_manager', labelKey: 'login.roleManager', hintKey: 'login.roleManagerHint', icon: 'prices' },
   { value: 'buyer', labelKey: 'login.roleBuyer', hintKey: 'login.roleBuyerHint', icon: 'markets' },
 ]
-
-function AuthArt() {
-  return (
-    <svg viewBox="0 0 520 300" className="auth-art" aria-hidden="true">
-      <defs>
-        <linearGradient id="authfield" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#7cc07a" />
-          <stop offset="100%" stopColor="#3f8d4f" />
-        </linearGradient>
-        <linearGradient id="authsky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(255,255,255,0.18)" />
-          <stop offset="100%" stopColor="rgba(255,255,255,0.02)" />
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width="520" height="300" rx="24" fill="url(#authsky)" />
-      <circle cx="420" cy="68" r="34" fill="#f6d27a" opacity="0.92" />
-      <circle cx="420" cy="68" r="52" fill="#f6d27a" opacity="0.14" />
-      <path d="M0 172c64-44 121-43 176-7 42 28 84 27 128-3 56-38 126-39 216 12v126H0z" fill="#84b46f" opacity="0.55" />
-      <path d="M0 208c84-37 149-27 202 1 54 29 103 23 153-5 53-30 106-26 165 10v86H0z" fill="url(#authfield)" />
-      <path d="M36 300c40-45 91-73 152-88M104 300c35-36 78-58 128-70M178 300c33-29 70-46 112-55M256 300c35-22 74-33 117-36M336 300c31-14 66-21 104-22" stroke="#2f743e" strokeWidth="3" strokeLinecap="round" opacity="0.35" fill="none" />
-      <path d="M0 146c30-18 57-19 82-5" stroke="#a9d09f" strokeWidth="6" strokeLinecap="round" fill="none" opacity="0.4" />
-      <g transform="translate(148 130)">
-        <rect x="0" y="20" width="94" height="48" rx="9" fill="#ffffff" />
-        <rect x="11" y="30" width="34" height="20" rx="5" fill="#a9d3b4" />
-        <path d="M94 37h26l18 17v14H94z" fill="#216a3d" />
-        <rect x="101" y="43" width="19" height="11" rx="3" fill="#c9e7d3" />
-        <circle cx="30" cy="70" r="12" fill="#183a26" />
-        <circle cx="30" cy="70" r="4.7" fill="#d7e7da" />
-        <circle cx="116" cy="70" r="12" fill="#183a26" />
-        <circle cx="116" cy="70" r="4.7" fill="#d7e7da" />
-        <rect x="5" y="44" width="7" height="11" rx="3" fill="#f2c96b" />
-      </g>
-      <g fill="#ffffff" opacity="0.55">
-        <circle cx="63" cy="62" r="2.4" />
-        <circle cx="88" cy="48" r="1.8" />
-        <circle cx="116" cy="70" r="1.6" />
-        <circle cx="250" cy="54" r="2" />
-        <circle cx="282" cy="74" r="1.6" />
-      </g>
-      <g transform="translate(388 178)">
-        <path d="M0 34c0-24 15-40 37-44-3 25-16 41-37 44z" fill="#e9f4e2" opacity="0.9" />
-        <path d="M0 34c-15-13-18-30-9-47 16 13 19 31 9 47z" fill="#d3ead1" opacity="0.9" />
-        <path d="M0 36v48" stroke="#e4f0dd" strokeWidth="3.5" strokeLinecap="round" />
-      </g>
-    </svg>
-  )
-}
 
 export default function Login() {
   const { t, statusLabel, roleLabel } = useLanguage()
   const [mode, setMode] = useState('signin')
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
   const [location, setLocation] = useState('')
   const [role, setRole] = useState('farmer')
   const [showPw, setShowPw] = useState(false)
+  const [showConfirmPw, setShowConfirmPw] = useState(false)
   const [remember, setRemember] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -127,6 +82,14 @@ export default function Login() {
       setError(t('login.errPassword'))
       return
     }
+    if (password !== confirmPassword) {
+      setError(t('login.errPasswordMismatch'))
+      return
+    }
+    if (!location.trim()) {
+      setError(t('login.errLocation'))
+      return
+    }
     setLoading(true)
     try {
       const data = await apiSignup({
@@ -149,6 +112,7 @@ export default function Login() {
 
   return (
     <div className="auth-page">
+      <img className="auth-page-bg" src={farmerImage} alt="" aria-hidden="true" />
       <section className="auth-hero">
         <header className="auth-hero-top">
           <BrandLogo light />
@@ -170,8 +134,6 @@ export default function Login() {
           </div>
         </div>
 
-        <div className="auth-hero-art"><AuthArt /></div>
-
         <div className="auth-hero-foot">
           <span className="auth-foot-dot" />
           <span>{t('login.heroFoot')}</span>
@@ -190,31 +152,10 @@ export default function Login() {
             <p>{mode === 'signin' ? t('login.signinSub') : t('login.signupSub')}</p>
           </div>
 
-          <div className="auth-seg" role="tablist" aria-label="Authentication mode">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'signin'}
-              className={mode === 'signin' ? 'active' : ''}
-              onClick={() => switchMode('signin')}
-            >
-              {t('login.signIn')}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === 'signup'}
-              className={mode === 'signup' ? 'active' : ''}
-              onClick={() => switchMode('signup')}
-            >
-              {t('login.register')}
-            </button>
-          </div>
-
           {mode === 'signin' ? (
             <form className="auth-form" onSubmit={handleSignin} noValidate>
               <label className="auth-field">
-                <span className="auth-label">{t('login.identifierLabel')}</span>
+                <span className="auth-label">{t('login.identifierLabel')}<span className="auth-required">*</span></span>
                 <span className="auth-input">
                   <span className="auth-input-icon"><Icon name="phone" size={16} /></span>
                   <input
@@ -229,7 +170,7 @@ export default function Login() {
               </label>
 
               <label className="auth-field">
-                <span className="auth-label">{t('login.password')}</span>
+                <span className="auth-label">{t('login.password')}<span className="auth-required">*</span></span>
                 <span className="auth-input">
                   <span className="auth-input-icon"><Icon name="lock" size={16} /></span>
                   <input
@@ -281,7 +222,7 @@ export default function Login() {
           ) : (
             <form className="auth-form" onSubmit={handleSignup} noValidate>
               <label className="auth-field">
-                <span className="auth-label">{t('login.fullName')}</span>
+                <span className="auth-label">{t('login.fullName')}<span className="auth-required">*</span></span>
                 <span className="auth-input">
                   <span className="auth-input-icon"><Icon name="profile" size={16} /></span>
                   <input
@@ -295,7 +236,7 @@ export default function Login() {
               </label>
 
               <label className="auth-field">
-                <span className="auth-label">{t('login.mobile')}</span>
+                <span className="auth-label">{t('login.mobile')}<span className="auth-required">*</span></span>
                 <span className="auth-input">
                   <span className="auth-input-icon"><Icon name="phone" size={16} /></span>
                   <input
@@ -310,7 +251,7 @@ export default function Login() {
               </label>
 
               <label className="auth-field">
-                <span className="auth-label">{t('login.password')}</span>
+                <span className="auth-label">{t('login.password')}<span className="auth-required">*</span></span>
                 <span className="auth-input">
                   <span className="auth-input-icon"><Icon name="lock" size={16} /></span>
                   <input
@@ -332,7 +273,29 @@ export default function Login() {
               </label>
 
               <label className="auth-field">
-                <span className="auth-label">{t('login.villageTown')}<small>{t('common.optional')}</small></span>
+                <span className="auth-label">{t('login.confirmPassword')}<span className="auth-required">*</span></span>
+                <span className="auth-input">
+                  <span className="auth-input-icon"><Icon name="lock" size={16} /></span>
+                  <input
+                    type={showConfirmPw ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    placeholder={t('login.confirmPasswordPlaceholder')}
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="auth-eye"
+                    onClick={() => setShowConfirmPw((value) => !value)}
+                    aria-label={showConfirmPw ? t('login.hidePassword') : t('login.showPassword')}
+                  >
+                    <Icon name={showConfirmPw ? 'eyeOff' : 'eye'} size={16} />
+                  </button>
+                </span>
+              </label>
+
+              <label className="auth-field">
+                <span className="auth-label">{t('login.villageTown')}<span className="auth-required">*</span></span>
                 <span className="auth-input">
                   <span className="auth-input-icon"><Icon name="markets" size={16} /></span>
                   <input
@@ -346,7 +309,7 @@ export default function Login() {
               </label>
 
               <div className="auth-role-field">
-                <span className="auth-label">{t('login.iAmA')}</span>
+                <span className="auth-label">{t('login.iAmA')}<span className="auth-required">*</span></span>
                 <div className="auth-roles">
                   {ROLE_CHOICES.map((item) => (
                     <button

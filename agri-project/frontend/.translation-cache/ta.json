@@ -71,7 +71,6 @@
   "status.closed": "மூடப்பட்டது",
   "role.farmer": "விவசாயி",
   "role.truckOperator": "லாரி நடத்துபவர்",
-  "role.fpo": "FPO",
   "role.marketManager": "சந்தை விலை மேலாளர்",
   "role.admin": "நிர்வாகி",
   "role.buyer": "வாங்குபவர் / பொது மக்கள்",
@@ -137,7 +136,7 @@
   "login.benefitPrices": "நேரடி மண்டி விலை",
   "login.benefitTrucks": "பகிரப்பட்ட டிரக் முன்பதிவு",
   "login.benefitTracking": "நேரடி பயண கண்காணிப்பு",
-  "login.heroFoot": "விவசாயிகள், FPOக்கள் மற்றும் போக்குவரத்து ஆபரேட்டர்களுக்காக கட்டப்பட்டது",
+  "login.heroFoot": "Built for farmers and transport operators",
   "login.welcomeBack": "மீண்டும் வரவேற்கிறோம்!",
   "login.createAccountTitle": "உங்கள் கணக்கை உருவாக்கவும்",
   "login.signinSub": "உங்கள் பண்ணை டாஷ்போர்டில் தொடர உள்நுழைக.",
@@ -182,7 +181,6 @@
   "login.roleFarmerHint": "பயிர்களை விற்கவும்",
   "login.roleOperator": "லாரி நடத்துபவர்",
   "login.roleOperatorHint": "அறுவடைகளை நகர்த்தவும்",
-  "login.roleFpoHint": "கூட்டு விற்பனை",
   "login.roleManager": "விலை மேலாளர்",
   "login.roleManagerHint": "மண்டி விகிதங்களை வெளியிடவும்",
   "login.roleBuyer": "பொது மக்கள் / வாங்குபவர்",
@@ -658,7 +656,6 @@
   "profile.mobileSignin": "மொபைல் உள்நுழைவு",
   "profile.mobileSigninSub": "எந்தச் சாதனத்திலிருந்தும் உங்கள் மொபைல் எண் மற்றும் கடவுச்சொல் மூலம் உள்நுழையலாம்.",
   "profile.hintFarmer": "பயிர் இருப்பை பட்டியலிடுங்கள், மண்டிகளை ஒப்பிட்டுப் பகிர்ந்த போக்குவரத்தைப் பதிவு செய்யவும்.",
-  "profile.hintFpo": "மொத்த உறுப்பினர் உற்பத்தி மற்றும் சந்தை பயணங்களை ஒருங்கிணைக்க.",
   "profile.hintTruckOperator": "டிரக் திறனை வெளியிடவும் மற்றும் நேரலை இருப்பிடங்களுடன் பயணங்களைப் புதுப்பிக்கவும்.",
   "profile.hintMarketManager": "உங்கள் சந்தைக்கான நேர முத்திரையிடப்பட்ட மண்டி விலைகளை வெளியிடவும்.",
   "profile.hintBuyer": "நீங்கள் வாங்குவதற்கு முன் சந்தைகள் மற்றும் சமீபத்திய விலைகளை ஆராயுங்கள்.",
@@ -706,5 +703,9 @@
   "chatHint": "AI தவறு செய்யலாம். முக்கியமான தகவலை சரிபார்க்கவும்.",
   "chatCardT": "AI உதவியாளர்",
   "chatCardD": "விவசாயம் தொடர்பான கேள்விகளைக் கேளுங்கள் மற்றும் உங்கள் உள்ளூர் ஒல்லாமா மாதிரியிலிருந்து உடனடி வழிகாட்டுதலைப் பெறுங்கள்.",
-  "chatOpen": "அரட்டையைத் திறக்கவும்"
+  "chatOpen": "அரட்டையைத் திறக்கவும்",
+  "login.confirmPassword": "Confirm Password",
+  "login.confirmPasswordPlaceholder": "Re-enter your password",
+  "login.errLocation": "Enter your village or town.",
+  "login.errPasswordMismatch": "Passwords do not match."
 }

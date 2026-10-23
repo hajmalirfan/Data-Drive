@@ -3,7 +3,6 @@ import api from './api'
 export const ROLES = [
   'farmer',
   'truck_operator',
-  'fpo',
   'market_manager',
   'admin',
   'buyer',
@@ -12,7 +11,6 @@ export const ROLES = [
 export const ROLE_LABELS = {
   farmer: 'Farmer',
   truck_operator: 'Truck Operator',
-  fpo: 'FPO',
   market_manager: 'Market Price Manager',
   admin: 'Admin',
   buyer: 'Buyer / General Public',

@@ -43,8 +43,8 @@ def _get_conversation(db: Session, conversation_id: int, user: User) -> Conversa
 def _system_prompt(role: str, language: str | None) -> str:
     lang = language or "en"
     return (
-        "You are AgriSave AI, a helpful agricultural assistant for farmers, FPOs "
-        "(Farmer Producer Organizations), and agri-marketers in India. "
+        "You are AgriSave AI, a helpful agricultural assistant for farmers "
+        "and agri-marketers in India. "
         f"The current user's role is '{role}'. "
         "Give clear, practical and concise answers using simple language. "
         "For recommendations, mention safety and the need to verify locally. "

@@ -71,7 +71,6 @@
   "status.closed": "ಮುಚ್ಚಲಾಗಿದೆ",
   "role.farmer": "ರೈತ",
   "role.truckOperator": "ಟ್ರಕ್ ಆಪರೇಟರ್",
-  "role.fpo": "FPO",
   "role.marketManager": "ಮಾರುಕಟ್ಟೆ ಬೆಲೆ ನಿರ್ವಾಹಕ",
   "role.admin": "ನಿರ್ವಾಹಕ",
   "role.buyer": "ಖರೀದಿದಾರ / ಸಾಮಾನ್ಯ ಸಾರ್ವಜನಿಕ",
@@ -182,7 +181,6 @@
   "login.roleFarmerHint": "ಬೆಳೆಗಳನ್ನು ಮಾರಾಟ ಮಾಡಿ",
   "login.roleOperator": "ಟ್ರಕ್ ಆಪರೇಟರ್",
   "login.roleOperatorHint": "ಕೊಯ್ಲುಗಳನ್ನು ಸರಿಸಿ",
-  "login.roleFpoHint": "ಸಾಮೂಹಿಕ ಮಾರಾಟ",
   "login.roleManager": "ಬೆಲೆ ನಿರ್ವಾಹಕ",
   "login.roleManagerHint": "ಮಂಡಿ ದರಗಳನ್ನು ಪ್ರಕಟಿಸಿ",
   "login.roleBuyer": "ಸಾಮಾನ್ಯ ಸಾರ್ವಜನಿಕ / ಖರೀದಿದಾರ",
@@ -658,7 +656,6 @@
   "profile.mobileSignin": "ಮೊಬೈಲ್ ಸೈನ್-ಇನ್",
   "profile.mobileSigninSub": "ನೀವು ಯಾವುದೇ ಸಾಧನದಿಂದ ನಿಮ್ಮ ಮೊಬೈಲ್ ಸಂಖ್ಯೆ ಮತ್ತು ಪಾಸ್‌ವರ್ಡ್‌ನೊಂದಿಗೆ ಸೈನ್ ಇನ್ ಮಾಡಬಹುದು.",
   "profile.hintFarmer": "ಬೆಳೆ ದಾಸ್ತಾನು ಪಟ್ಟಿ ಮಾಡಿ, ಮಂಡಿಗಳನ್ನು ಹೋಲಿಕೆ ಮಾಡಿ ಮತ್ತು ಹಂಚಿದ ಸಾರಿಗೆಯನ್ನು ಬುಕ್ ಮಾಡಿ.",
-  "profile.hintFpo": "ಒಟ್ಟು ಸದಸ್ಯರು ಮಾರುಕಟ್ಟೆ ಪ್ರವಾಸಗಳನ್ನು ಉತ್ಪಾದಿಸಿ ಮತ್ತು ಸಂಘಟಿಸುತ್ತಾರೆ.",
   "profile.hintTruckOperator": "ಟ್ರಕ್ ಸಾಮರ್ಥ್ಯವನ್ನು ಪ್ರಕಟಿಸಿ ಮತ್ತು ಲೈವ್ ಸ್ಥಳಗಳೊಂದಿಗೆ ಪ್ರವಾಸಗಳನ್ನು ನವೀಕರಿಸಿ.",
   "profile.hintMarketManager": "ನಿಮ್ಮ ಮಾರುಕಟ್ಟೆಗಾಗಿ ಸಮಯ-ಮುದ್ರೆಯ ಮಂಡಿ ಬೆಲೆಗಳನ್ನು ಪ್ರಕಟಿಸಿ.",
   "profile.hintBuyer": "ನೀವು ಖರೀದಿಸುವ ಮೊದಲು ಮಾರುಕಟ್ಟೆಗಳು ಮತ್ತು ಇತ್ತೀಚಿನ ಬೆಲೆಗಳನ್ನು ಅನ್ವೇಷಿಸಿ.",
@@ -706,5 +703,9 @@
   "chatHint": "AI ತಪ್ಪುಗಳನ್ನು ಮಾಡಬಹುದು. ಪ್ರಮುಖ ಮಾಹಿತಿಯನ್ನು ಪರಿಶೀಲಿಸಿ.",
   "chatCardT": "AI ಸಹಾಯಕ",
   "chatCardD": "ಕೃಷಿ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳಿ ಮತ್ತು ನಿಮ್ಮ ಸ್ಥಳೀಯ ಒಲ್ಲಮಾ ಮಾದರಿಯಿಂದ ತ್ವರಿತ ಮಾರ್ಗದರ್ಶನ ಪಡೆಯಿರಿ.",
-  "chatOpen": "ಚಾಟ್ ತೆರೆಯಿರಿ"
+  "chatOpen": "ಚಾಟ್ ತೆರೆಯಿರಿ",
+  "login.confirmPassword": "Confirm Password",
+  "login.confirmPasswordPlaceholder": "Re-enter your password",
+  "login.errLocation": "Enter your village or town.",
+  "login.errPasswordMismatch": "Passwords do not match."
 }

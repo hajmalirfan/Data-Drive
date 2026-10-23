@@ -71,7 +71,6 @@
   "status.closed": "അടച്ചു",
   "role.farmer": "കർഷകൻ",
   "role.truckOperator": "ട്രക്ക് ഓപ്പറേറ്റർ",
-  "role.fpo": "FPO",
   "role.marketManager": "മാർക്കറ്റ് പ്രൈസ് മാനേജർ",
   "role.admin": "അഡ്മിൻ",
   "role.buyer": "വാങ്ങുന്നയാൾ / പൊതു ജനങ്ങൾ",
@@ -182,7 +181,6 @@
   "login.roleFarmerHint": "വിളകൾ വിൽക്കുക",
   "login.roleOperator": "ട്രക്ക് ഓപ്പറേറ്റർ",
   "login.roleOperatorHint": "വിളവെടുപ്പ് നീക്കുക",
-  "login.roleFpoHint": "കൂട്ടായ വിൽപ്പന",
   "login.roleManager": "വില മാനേജർ",
   "login.roleManagerHint": "മണ്ടി നിരക്കുകൾ പ്രസിദ്ധീകരിക്കുക",
   "login.roleBuyer": "പൊതു ജനങ്ങൾ / വാങ്ങുന്നയാൾ",
@@ -658,7 +656,6 @@
   "profile.mobileSignin": "മൊബൈൽ സൈൻ ഇൻ",
   "profile.mobileSigninSub": "ഏത് ഉപകരണത്തിൽ നിന്നും നിങ്ങളുടെ മൊബൈൽ നമ്പറും പാസ്‌വേഡും ഉപയോഗിച്ച് സൈൻ ഇൻ ചെയ്യാം.",
   "profile.hintFarmer": "വിള സ്റ്റോക്ക് ലിസ്റ്റ് ചെയ്യുക, മണ്ടികൾ താരതമ്യം ചെയ്യുക, പങ്കിട്ട ഗതാഗതം ബുക്ക് ചെയ്യുക.",
-  "profile.hintFpo": "മൊത്തം അംഗങ്ങൾ ഉൽപ്പാദിപ്പിക്കുകയും വിപണി യാത്രകൾ ഏകോപിപ്പിക്കുകയും ചെയ്യുക.",
   "profile.hintTruckOperator": "ട്രക്ക് കപ്പാസിറ്റി പ്രസിദ്ധീകരിക്കുക, തത്സമയ ലൊക്കേഷനുകൾ ഉപയോഗിച്ച് യാത്രകൾ അപ്ഡേറ്റ് ചെയ്യുക.",
   "profile.hintMarketManager": "നിങ്ങളുടെ മാർക്കറ്റിനായി ടൈം സ്റ്റാമ്പ് ചെയ്ത മണ്ടി വിലകൾ പ്രസിദ്ധീകരിക്കുക.",
   "profile.hintBuyer": "നിങ്ങൾ വാങ്ങുന്നതിന് മുമ്പ് വിപണികളും ഏറ്റവും പുതിയ വിലകളും പര്യവേക്ഷണം ചെയ്യുക.",
@@ -706,5 +703,9 @@
   "chatHint": "AI-ക്ക് തെറ്റുകൾ വരുത്താം. പ്രധാനപ്പെട്ട വിവരങ്ങൾ പരിശോധിക്കുക.",
   "chatCardT": "AI അസിസ്റ്റൻ്റ്",
   "chatCardD": "കൃഷിയുമായി ബന്ധപ്പെട്ട ചോദ്യങ്ങൾ ചോദിക്കുകയും നിങ്ങളുടെ പ്രാദേശിക ഒല്ലാമ മോഡലിൽ നിന്ന് തൽക്ഷണ മാർഗനിർദേശം നേടുകയും ചെയ്യുക.",
-  "chatOpen": "ചാറ്റ് തുറക്കുക"
+  "chatOpen": "ചാറ്റ് തുറക്കുക",
+  "login.confirmPassword": "Confirm Password",
+  "login.confirmPasswordPlaceholder": "Re-enter your password",
+  "login.errLocation": "Enter your village or town.",
+  "login.errPasswordMismatch": "Passwords do not match."
 }

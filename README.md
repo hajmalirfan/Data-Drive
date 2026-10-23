@@ -5,7 +5,7 @@ SmartAg Ops Advisor is a full-stack agriculture operations platform for comparin
 ## Features
 
 - JWT authentication with role-based access control
-- Roles: farmer, FPO, marketer, buyer, truck operator, market price manager, admin
+- Roles: farmer, marketer, buyer, truck operator, market price manager, admin
 - Crop stock management and market price comparison
 - Truck discovery, booking, and trip status tracking
 - Live location sharing for active deliveries

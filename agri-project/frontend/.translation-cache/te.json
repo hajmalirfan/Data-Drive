@@ -71,7 +71,6 @@
   "status.closed": "మూసివేయబడింది",
   "role.farmer": "రైతు",
   "role.truckOperator": "ట్రక్ ఆపరేటర్",
-  "role.fpo": "FPO",
   "role.marketManager": "మార్కెట్ ధర మేనేజర్",
   "role.admin": "అడ్మిన్",
   "role.buyer": "కొనుగోలుదారు / సాధారణ ప్రజలు",
@@ -137,7 +136,7 @@
   "login.benefitPrices": "ప్రత్యక్ష మండీ ధరలు",
   "login.benefitTrucks": "షేర్డ్ ట్రక్ బుకింగ్",
   "login.benefitTracking": "ప్రత్యక్ష పర్యటన ట్రాకింగ్",
-  "login.heroFoot": "రైతులు, FPOలు మరియు రవాణా ఆపరేటర్ల కోసం నిర్మించబడింది",
+  "login.heroFoot": "Built for farmers and transport operators",
   "login.welcomeBack": "తిరిగి స్వాగతం!",
   "login.createAccountTitle": "మీ ఖాతాను సృష్టించండి",
   "login.signinSub": "మీ వ్యవసాయ డాష్‌బోర్డ్‌కి కొనసాగడానికి లాగిన్ చేయండి.",
@@ -182,7 +181,6 @@
   "login.roleFarmerHint": "పంటలు అమ్మండి",
   "login.roleOperator": "ట్రక్ ఆపరేటర్",
   "login.roleOperatorHint": "పంటలను తరలించండి",
-  "login.roleFpoHint": "సామూహిక అమ్మకం",
   "login.roleManager": "ధర మేనేజర్",
   "login.roleManagerHint": "మండి రేట్లు ప్రచురించండి",
   "login.roleBuyer": "సాధారణ పబ్లిక్ / కొనుగోలుదారు",
@@ -658,7 +656,6 @@
   "profile.mobileSignin": "మొబైల్ సైన్-ఇన్",
   "profile.mobileSigninSub": "మీరు ఏ పరికరం నుండి అయినా మీ మొబైల్ నంబర్ మరియు పాస్‌వర్డ్‌తో సైన్ ఇన్ చేయవచ్చు.",
   "profile.hintFarmer": "పంట నిల్వలను జాబితా చేయండి, మండీలను సరిపోల్చండి మరియు భాగస్వామ్య రవాణాను బుక్ చేయండి.",
-  "profile.hintFpo": "మొత్తం సభ్యుల ఉత్పత్తి మరియు మార్కెట్ పర్యటనలను సమన్వయం చేయండి.",
   "profile.hintTruckOperator": "ట్రక్ సామర్థ్యాన్ని ప్రచురించండి మరియు ప్రత్యక్ష స్థానాలతో పర్యటనలను నవీకరించండి.",
   "profile.hintMarketManager": "మీ మార్కెట్ కోసం టైమ్ స్టాంప్ చేసిన మండి ధరలను ప్రచురించండి.",
   "profile.hintBuyer": "మీరు కొనుగోలు చేసే ముందు మార్కెట్‌లు మరియు తాజా ధరలను అన్వేషించండి.",
@@ -706,5 +703,9 @@
   "chatHint": "AI తప్పులు చేయగలదు. ముఖ్యమైన సమాచారాన్ని ధృవీకరించండి.",
   "chatCardT": "AI అసిస్టెంట్",
   "chatCardD": "వ్యవసాయ ప్రశ్నలను అడగండి మరియు మీ స్థానిక ఒల్లామా మోడల్ నుండి తక్షణ మార్గదర్శకత్వం పొందండి.",
-  "chatOpen": "చాట్ తెరవండి"
+  "chatOpen": "చాట్ తెరవండి",
+  "login.confirmPassword": "Confirm Password",
+  "login.confirmPasswordPlaceholder": "Re-enter your password",
+  "login.errLocation": "Enter your village or town.",
+  "login.errPasswordMismatch": "Passwords do not match."
 }

@@ -366,7 +366,6 @@
 .role-truck_operator { background: #eaf1fb; color: #2f6296; }
 .role-market_manager { background: #fdf4df; color: #8a6215; }
 .role-buyer { background: #f1f0fb; color: #5a4aa8; }
-.role-fpo { background: #ebf6f0; color: #207c54; }
 
 @media (max-width: 900px) {
   .ui-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }

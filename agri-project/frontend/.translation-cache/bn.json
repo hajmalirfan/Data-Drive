@@ -71,7 +71,6 @@
   "status.closed": "বন্ধ",
   "role.farmer": "কৃষক",
   "role.truckOperator": "ট্রাক অপারেটর",
-  "role.fpo": "FPO",
   "role.marketManager": "বাজার মূল্য ব্যবস্থাপক",
   "role.admin": "অ্যাডমিন",
   "role.buyer": "ক্রেতা/সাধারণ জনগণ",
@@ -137,7 +136,7 @@
   "login.benefitPrices": "লাইভ মান্ডি দাম",
   "login.benefitTrucks": "শেয়ার্ড ট্রাক বুকিং",
   "login.benefitTracking": "লাইভ ট্রিপ ট্র্যাকিং",
-  "login.heroFoot": "কৃষক, FPO এবং পরিবহন অপারেটরদের জন্য নির্মিত",
+  "login.heroFoot": "Built for farmers and transport operators",
   "login.welcomeBack": "আবার স্বাগতম!",
   "login.createAccountTitle": "আপনার অ্যাকাউন্ট তৈরি করুন",
   "login.signinSub": "আপনার ফার্ম ড্যাশবোর্ডে চালিয়ে যেতে লগ ইন করুন।",
@@ -182,7 +181,6 @@
   "login.roleFarmerHint": "ফসল বিক্রি করুন",
   "login.roleOperator": "ট্রাক অপারেটর",
   "login.roleOperatorHint": "ফসল সরান",
-  "login.roleFpoHint": "যৌথ বিক্রয়",
   "login.roleManager": "মূল্য ব্যবস্থাপক",
   "login.roleManagerHint": "মান্ডি রেট প্রকাশ করুন",
   "login.roleBuyer": "সাধারণ জনগণ/ক্রেতা",
@@ -658,7 +656,6 @@
   "profile.mobileSignin": "মোবাইল সাইন ইন",
   "profile.mobileSigninSub": "আপনি যেকোনো ডিভাইস থেকে আপনার মোবাইল নম্বর এবং পাসওয়ার্ড দিয়ে সাইন ইন করতে পারেন।",
   "profile.hintFarmer": "ফসলের স্টক তালিকাভুক্ত করুন, মন্ডির তুলনা করুন এবং শেয়ার্ড ট্রান্সপোর্ট বুক করুন।",
-  "profile.hintFpo": "সমষ্টি সদস্য উত্পাদন এবং বাজার ট্রিপ সমন্বয়.",
   "profile.hintTruckOperator": "ট্রাকের ক্ষমতা প্রকাশ করুন এবং লাইভ অবস্থানের সাথে ট্রিপ আপডেট করুন।",
   "profile.hintMarketManager": "আপনার বাজারের জন্য টাইম-স্ট্যাম্পযুক্ত মান্ডি মূল্য প্রকাশ করুন।",
   "profile.hintBuyer": "আপনি কেনার আগে বাজার এবং সর্বশেষ দাম অন্বেষণ করুন.",
@@ -706,5 +703,9 @@
   "chatHint": "এআই ভুল করতে পারে। গুরুত্বপূর্ণ তথ্য যাচাই করুন।",
   "chatCardT": "এআই সহকারী",
   "chatCardD": "চাষের প্রশ্ন জিজ্ঞাসা করুন এবং আপনার স্থানীয় ওল্লামা মডেল থেকে তাৎক্ষণিক নির্দেশনা পান।",
-  "chatOpen": "খোলা চ্যাট"
+  "chatOpen": "খোলা চ্যাট",
+  "login.confirmPassword": "Confirm Password",
+  "login.confirmPasswordPlaceholder": "Re-enter your password",
+  "login.errLocation": "Enter your village or town.",
+  "login.errPasswordMismatch": "Passwords do not match."
 }

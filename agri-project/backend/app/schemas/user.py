@@ -2,10 +2,9 @@ from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
-# Role type: farmer | fpo | marketer | admin | truck_operator | market_manager | buyer
+# Role type: farmer | marketer | admin | truck_operator | market_manager | buyer
 UserRole = Literal[
     "farmer",
-    "fpo",
     "marketer",
     "admin",
     "truck_operator",

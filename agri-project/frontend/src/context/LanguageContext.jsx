@@ -61,7 +61,6 @@ export function LanguageProvider({ children }) {
       const map = {
         farmer: 'role.farmer',
         truck_operator: 'role.truckOperator',
-        fpo: 'role.fpo',
         market_manager: 'role.marketManager',
         admin: 'role.admin',
         buyer: 'role.buyer',

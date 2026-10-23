@@ -42,14 +42,13 @@ export function AuthProvider({ children }) {
   const hasRole = (...allowed) => !!role && allowed.includes(role)
   const isAdmin = role === 'admin'
   const isFarmer = role === 'farmer'
-  const isFpo = role === 'fpo'
   const isMarketer = role === 'marketer'
   const isTruckOperator = role === 'truck_operator'
   const isPriceManager = role === 'market_manager'
   const isBuyer = role === 'buyer'
 
   return (
-    <AuthContext.Provider value={{ user, token, role, saveAuth, logout, updateUser, isAuth: !!token, hasRole, isAdmin, isFarmer, isFpo, isMarketer, isTruckOperator, isPriceManager, isBuyer }}>
+    <AuthContext.Provider value={{ user, token, role, saveAuth, logout, updateUser, isAuth: !!token, hasRole, isAdmin, isFarmer, isMarketer, isTruckOperator, isPriceManager, isBuyer }}>
       {children}
     </AuthContext.Provider>
   )

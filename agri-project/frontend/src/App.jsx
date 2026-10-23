@@ -57,7 +57,6 @@ export default function App() {
               <Route path="/admin" element={<Admin />} />
             </Route>
             <Route path="/farmer" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/fpo" element={<Navigate to="/dashboard" replace />} />
             <Route path="/marketer" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

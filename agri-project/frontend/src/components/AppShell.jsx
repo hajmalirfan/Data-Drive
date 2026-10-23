@@ -15,13 +15,13 @@ import { useLanguage } from '../context/LanguageContext'
 
 const NAV = [
   { to: '/dashboard', label: 'nav.dashboard', icon: 'dashboard' },
-  { to: '/crops', label: 'nav.crops', icon: 'crops', roles: ['farmer', 'fpo', 'admin'] },
+  { to: '/crops', label: 'nav.crops', icon: 'crops', roles: ['farmer', 'admin'] },
   { to: '/market-prices', label: 'nav.marketPrices', icon: 'prices' },
   { to: '/markets', label: 'nav.markets', icon: 'markets' },
-  { to: '/trucks', label: 'nav.trucks', icon: 'truck', roles: ['farmer', 'fpo', 'admin', 'truck_operator'] },
-  { to: '/tracking', label: 'nav.tracking', icon: 'tracking', roles: ['farmer', 'fpo', 'admin', 'truck_operator'] },
-  { to: '/bookings', label: 'nav.bookings', icon: 'bookings', roles: ['farmer', 'fpo', 'admin', 'truck_operator'] },
-  { to: '/reports', label: 'nav.reports', icon: 'reports', roles: ['farmer', 'fpo', 'admin', 'market_manager'] },
+  { to: '/trucks', label: 'nav.trucks', icon: 'truck', roles: ['farmer', 'admin', 'truck_operator'] },
+  { to: '/tracking', label: 'nav.tracking', icon: 'tracking', roles: ['farmer', 'admin', 'truck_operator'] },
+  { to: '/bookings', label: 'nav.bookings', icon: 'bookings', roles: ['farmer', 'admin', 'truck_operator'] },
+  { to: '/reports', label: 'nav.reports', icon: 'reports', roles: ['farmer', 'admin', 'market_manager'] },
   { to: '/chat', label: 'nav.chat', icon: 'chat' },
   { to: '/profile', label: 'nav.profile', icon: 'profile' },
   { to: '/admin', label: 'nav.admin', icon: 'shield', roles: ['admin'] },

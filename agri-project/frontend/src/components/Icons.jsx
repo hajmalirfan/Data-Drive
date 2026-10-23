@@ -205,6 +205,13 @@ const shapes = {
       <path d="m9 12 2 2 4-4" />
     </>
   ),
+  globe: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <ellipse cx="12" cy="12" rx="4" ry="9" />
+    </>
+  ),
 }
 
 export default function Icon({ name, size = 18, strokeWidth = 1.7, ...rest }) {
