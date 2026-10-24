@@ -17,3 +17,8 @@ class User(Base):
     vehicle_capacity_kg = Column(Float, nullable=True)
     role = Column(String(20), nullable=False, default="farmer", server_default="farmer")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # Security policy: lockout after repeated wrong passwords; sessions issued before
+    # the last password change are rejected.
+    failed_login_attempts = Column(Integer, nullable=True, default=0)
+    locked_until = Column(DateTime(timezone=True), nullable=True)
+    password_changed_at = Column(DateTime(timezone=True), nullable=True)

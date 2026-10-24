@@ -268,10 +268,13 @@
   .mk-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 520px) {
-  .mk-stats { grid-template-columns: minmax(0, 1fr); }
+  .mk-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mk-map { height: 340px; }
   .mk-pin-card strong { font-size: 7.5px; }
   .mk-pin-card small { font-size: 6.8px; }
   .mk-list-head .ui-filters { flex-wrap: wrap; }
   .mk-list-head .ui-select { width: 100%; }
 }
+
+/* Title and the labelled crop selector share one baseline. */
+.markets-page > .ui-toolbar { align-items: flex-end; }

@@ -6,6 +6,7 @@ import Icon from '../components/Icons'
 import { useLanguage } from '../context/LanguageContext'
 import { forgotPassword, verifyResetOtp, resetPassword } from '../services/authService'
 import farmerImage from '../assets/farmer-logo.jpg'
+import { meetsPasswordPolicy } from '../utils/passwordPolicy'
 import './Login.css'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -89,8 +90,8 @@ export default function ForgotPassword() {
   const handleReset = async (event) => {
     event.preventDefault()
     resetMessages()
-    if (newPassword.length < 6) {
-      setError(t('login.errNewPassword'))
+    if (!meetsPasswordPolicy(newPassword)) {
+      setError(t('login.errPasswordPolicy'))
       return
     }
     if (newPassword !== confirmPassword) {
@@ -270,7 +271,7 @@ export default function ForgotPassword() {
                     <input
                       type={showPw ? 'text' : 'password'}
                       autoComplete="new-password"
-                      placeholder={t('login.newPasswordPlaceholder')}
+                      placeholder={t('login.passwordPolicyPlaceholder')}
                       value={newPassword}
                       onChange={(event) => setNewPassword(event.target.value)}
                     />

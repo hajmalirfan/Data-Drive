@@ -622,17 +622,22 @@
   .dbm-compare-body { grid-template-columns: minmax(0, 1fr); }
   .dbm-compare-summary { border-right: 0; border-bottom: 1px solid #edf1e9; }
   .dbm-hero { flex-direction: column; align-items: flex-start; gap: 10px; }
+  /* In a column the 480px basis would become a height. */
+  .dbm-hero-copy { flex: 0 0 auto; width: 100%; }
   .dbm-hero-visual { width: 100%; flex-basis: auto; min-width: 0; }
   .dbm-hero-art { width: min(440px, 100%); }
 }
 @media (max-width: 640px) {
-  .dbm-kpis { grid-template-columns: minmax(0, 1fr); gap: 10px; }
-  .dbm-skeleton-kpis { grid-template-columns: minmax(0, 1fr); }
+  .dbm-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .dbm-skeleton-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dbm-hero { padding: 20px; border-radius: 16px; }
   .dbm-hero h2 { font-size: 28px; }
   .dbm-hero p { font-size: 11.5px; }
   .dbm-hero-visual { display: none; }
   .dbm-kpi { padding: 13px 14px; }
+  /* Two per row: stack icon over text and pin the arrow so labels don't wrap. */
+  .dbm-kpi { position: relative; flex-direction: column; align-items: flex-start; gap: 8px; }
+  .dbm-kpi-go { position: absolute; top: 12px; right: 12px; }
   .dbm-compare-head { padding: 15px 16px 11px; }
   .dbm-compare-controls { width: 100%; }
   .dbm-compare-controls .ui-field { flex: 1 1 130px; width: auto; }

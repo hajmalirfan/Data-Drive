@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import SessionLocal, get_db
+from app.core.security_policy import rate_limit
 from app.models.chat import ChatMessage, Conversation
 from app.models.user import User
 from app.routers.auth import get_current_user
@@ -25,6 +26,10 @@ from app.schemas.chat import (
 )
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+# AI calls cost money and time: cap them per client IP. See SECURITY.md.
+limit_ai_message = rate_limit("ai_message", 20, 60)
+limit_transcribe = rate_limit("ai_transcribe", 10, 60)
 
 GEMINI_API_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
@@ -354,6 +359,7 @@ async def transcribe(
     audio: UploadFile = File(...),
     language: str = Form("en"),
     _user: User = Depends(get_current_user),
+    _rl=Depends(limit_transcribe),
 ):
     """Speech-to-text for the chat box. Audio is sent to Gemini and not stored."""
     _require_gemini_key()
@@ -486,6 +492,7 @@ async def send_message(
     data: ChatMessageIn,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    _rl=Depends(limit_ai_message),
 ):
     conversation = _get_conversation(db, conversation_id, user)
     content = data.content.strip()
@@ -528,6 +535,7 @@ async def stream_message(
     data: ChatMessageIn,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    _rl=Depends(limit_ai_message),
 ):
     conversation = _get_conversation(db, conversation_id, user)
     content = data.content.strip()

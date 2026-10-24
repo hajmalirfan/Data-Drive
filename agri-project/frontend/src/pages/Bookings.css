@@ -123,8 +123,13 @@
 .bookings-tabs {
   display: flex;
   gap: 2px;
-  flex-wrap: wrap;
+  /* One line of tabs; scroll sideways when the list is narrow. */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.bookings-tabs::-webkit-scrollbar { display: none; }
+.bookings-tabs button { flex: 0 0 auto; white-space: nowrap; }
 .bookings-tabs button {
   display: inline-flex;
   align-items: center;
@@ -166,6 +171,8 @@
   flex-direction: column;
   gap: 6px;
 }
+/* Cards keep their height and the list scrolls, instead of squashing the cards. */
+.bookings-list > * { flex-shrink: 0; }
 .bookings-list-empty { margin: auto; padding: 20px 16px; }
 
 .booking-card {
@@ -368,7 +375,7 @@
   .bookings-detail-pane { min-height: 380px; }
 }
 @media (max-width: 520px) {
-  .bookings-stats { grid-template-columns: minmax(0, 1fr); }
+  .bookings-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .booking-detail-grid { grid-template-columns: minmax(0, 1fr); }
   .bookings-detail-pane { padding: 14px; }
   .bookings-list-pane { max-height: 280px; }

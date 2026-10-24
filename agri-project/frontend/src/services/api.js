@@ -12,4 +12,19 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// A rejected session (expired, revoked after a password change, deleted user) signs the user out.
+const PUBLIC_AUTH = /\/api\/auth\/(login|signup|forgot-password|verify-otp|reset-password)/
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const url = error.config?.url || ''
+    if (error.response?.status === 401 && localStorage.getItem('token') && !PUBLIC_AUTH.test(url)) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      if (window.location.pathname !== '/login') window.location.assign('/login')
+    }
+    return Promise.reject(error)
+  }
+)
+
 export default api

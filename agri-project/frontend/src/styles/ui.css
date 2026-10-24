@@ -313,9 +313,16 @@
   display: flex;
   gap: 9px;
   flex-wrap: wrap;
-  align-items: center;
+  /* Labelled fields and buttons line up on the input baseline. */
+  align-items: flex-end;
 }
-.ui-filters .ui-input, .ui-filters .ui-select { height: 36px; font-size: 11.5px; width: auto; min-width: 140px; }
+.ui-filters .ui-input, .ui-filters .ui-select { height: 38px; font-size: 11.5px; width: auto; min-width: 140px; }
+/* Every filter row uses one control height so inputs and buttons line up. */
+.ui-filters .ui-btn,
+.crops-table-head > .ui-btn,
+.prices-filters .ui-btn,
+.prices-filters .ui-select,
+.trucks-filter-card .ui-btn { height: 38px; }
 
 .ui-kv { display: flex; flex-direction: column; gap: 2px; }
 .ui-kv span { font-size: 10.5px; color: #8b978e; font-weight: 600; }
@@ -379,5 +386,13 @@
   .ui-modal-body { padding: 15px 16px; }
   .ui-modal-head { padding: 15px 16px 12px; }
   .ui-modal-foot { padding: 12px 16px; }
-  .ui-filters .ui-input, .ui-filters .ui-select { flex: 1 1 130px; }
+  /* Grow the fields (row items), never the inputs inside them (column items). */
+  .ui-filters > .ui-input, .ui-filters > .ui-select, .ui-filters > .ui-field { flex: 1 1 140px; min-width: 0; }
+  .ui-filters .ui-field > .ui-input, .ui-filters .ui-field > .ui-select { width: 100%; min-width: 0; }
+}
+
+/* Stat-card rows show two per row on phones; very narrow screens fall back to one. */
+@media (max-width: 359px) {
+  .crops-summary, .prices-stats, .mk-stats, .bookings-stats, .dbm-kpis,
+  .dbm-skeleton-kpis, .driver-kpis, .reports-stats { grid-template-columns: minmax(0, 1fr) !important; }
 }

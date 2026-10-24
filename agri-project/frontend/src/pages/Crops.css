@@ -77,7 +77,7 @@
   .crops-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 520px) {
-  .crops-summary { grid-template-columns: minmax(0, 1fr); }
+  .crops-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .crops-table-head { padding: 14px 14px 0; }
   .crops-table-head .ui-filters { width: 100%; }
   .crops-table-head .ui-field { flex: 1 1 130px; }

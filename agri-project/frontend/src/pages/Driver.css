@@ -252,7 +252,7 @@
   .driver-lower { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 560px) {
-  .driver-kpis { grid-template-columns: minmax(0, 1fr); }
+  .driver-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .driver-hero { padding: 18px; }
   .driver-hero-actions { width: 100%; }
   .driver-hero-actions .ui-btn { flex: 1 1 auto; }

@@ -1,13 +1,14 @@
 import math
 import re
-from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from datetime import datetime, timedelta, timezone
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from typing import List
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.email import send_admin_login_email, send_password_reset_email, email_configured
+from app.core.security_policy import audit, enforce_password_policy, rate_limit
 from app.core.security import (
     hash_password,
     verify_password,
@@ -45,6 +46,22 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 SIGNUP_ROLES = ("farmer", "truck_operator")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
+# Brute-force protection (per client IP). See SECURITY.md.
+limit_login = rate_limit("login", 10, 60)
+limit_signup = rate_limit("signup", 10, 3600)
+limit_otp_send = rate_limit("otp_send", 5, 900)
+limit_otp_verify = rate_limit("otp_verify", 10, 300)
+limit_reset = rate_limit("reset_password", 10, 900)
+
+# Verified against unknown accounts so response time does not reveal which emails exist.
+_DUMMY_HASH = hash_password("timing-equaliser-not-a-real-password")
+
+
+def _aware(moment: datetime | None) -> datetime | None:
+    if moment is None:
+        return None
+    return moment.replace(tzinfo=timezone.utc) if moment.tzinfo is None else moment
+
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     payload = decode_token(token)
     # Purpose tokens (password reset, admin OTP challenge) are not sessions.
@@ -53,6 +70,10 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     user = db.query(User).filter(User.email == payload["sub"]).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    # Sessions issued before the last password change are revoked.
+    changed_at = _aware(user.password_changed_at)
+    if changed_at and int(payload.get("iat") or 0) < int(changed_at.timestamp()):
+        raise HTTPException(status_code=401, detail="Session expired. Please sign in again.")
     # Backfill role for old rows created before roles existed
     if not getattr(user, "role", None):
         user.role = "farmer"
@@ -91,15 +112,13 @@ def normalize_phone(value: str | None) -> str | None:
 
 
 @router.post("/signup", response_model=TokenResponse, status_code=201)
-def signup(data: UserSignup, db: Session = Depends(get_db)):
+def signup(data: UserSignup, request: Request, db: Session = Depends(get_db), _rl=Depends(limit_signup)):
     role = (data.role or "farmer").lower().strip()
     if role not in SIGNUP_ROLES:
         raise HTTPException(status_code=400, detail=f"Invalid role. Choose from: {', '.join(SIGNUP_ROLES)}")
-    if len(data.password) < 6:
-        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
-
     phone = normalize_phone(data.phone)
     email = data.email.lower().strip() if data.email else None
+    enforce_password_policy(data.password, email)
     if not email and not phone:
         raise HTTPException(status_code=400, detail="Email or mobile number is required")
     if not email and phone:
@@ -122,6 +141,7 @@ def signup(data: UserSignup, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
+    audit("signup", request, user_id=user.id, role=user.role)
     token = create_access_token({"sub": user.email, "role": user.role})
     return {"access_token": token, "token_type": "bearer", "user": user}
 
@@ -210,7 +230,7 @@ def admin_from_login_token(login_token: str, db: Session) -> User:
 
 
 @router.post("/login", response_model=LoginResponse)
-def login(data: UserLogin, db: Session = Depends(get_db)):
+def login(data: UserLogin, request: Request, db: Session = Depends(get_db), _rl=Depends(limit_login)):
     identifier = (data.identifier or data.email or data.phone or "").strip()
     if not identifier:
         raise HTTPException(status_code=400, detail="Email or mobile number is required")
@@ -221,20 +241,52 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
         phone = normalize_phone(identifier)
         user = db.query(User).filter(User.phone == phone).first()
 
-    if not user or not verify_password(data.password, user.hashed_password):
+    if not user:
+        verify_password(data.password, _DUMMY_HASH)
+        audit("login_failed", request, reason="unknown_account")
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+    now = datetime.now(timezone.utc)
+    locked_until = _aware(user.locked_until)
+    if locked_until and locked_until > now:
+        minutes = max(1, math.ceil((locked_until - now).total_seconds() / 60))
+        audit("login_blocked_locked", request, user_id=user.id)
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail=f"Too many failed sign-in attempts. Try again in {minutes} minutes or reset your password.",
+        )
+
+    if not verify_password(data.password, user.hashed_password):
+        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+        if user.failed_login_attempts >= settings.LOGIN_MAX_FAILURES:
+            user.locked_until = now + timedelta(minutes=settings.LOGIN_LOCKOUT_MINUTES)
+            user.failed_login_attempts = 0
+            audit("account_locked", request, user_id=user.id, minutes=settings.LOGIN_LOCKOUT_MINUTES)
+        else:
+            audit("login_failed", request, user_id=user.id, attempts=user.failed_login_attempts)
+        db.commit()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+    if user.failed_login_attempts or user.locked_until:
+        user.failed_login_attempts = 0
+        user.locked_until = None
+        db.commit()
     if not getattr(user, "role", None):
         user.role = "farmer"
         db.commit()
         db.refresh(user)
     if user.role == "admin":
+        audit("login_password_ok_otp_sent", request, user_id=user.id)
         return send_admin_login_otp(user, db)
+    audit("login_success", request, user_id=user.id, role=user.role)
     token = create_access_token({"sub": user.email, "role": user.role})
     return {"access_token": token, "token_type": "bearer", "user": user}
 
 
 @router.post("/login/verify-otp", response_model=TokenResponse)
-def verify_admin_login_otp(data: AdminOtpVerifyRequest, db: Session = Depends(get_db)):
+def verify_admin_login_otp(
+    data: AdminOtpVerifyRequest, request: Request, db: Session = Depends(get_db), _rl=Depends(limit_otp_verify)
+):
     """Second step of admin sign-in: check the emailed code and issue the session."""
     user = admin_from_login_token(data.login_token, db)
     now = datetime.utcnow()
@@ -262,22 +314,24 @@ def verify_admin_login_otp(data: AdminOtpVerifyRequest, db: Session = Depends(ge
     if not otp_matches(user.email, data.otp, record.otp_hash):
         record.attempts += 1
         db.commit()
+        audit("admin_otp_failed", request, user_id=user.id, attempts=record.attempts)
         raise HTTPException(status_code=400, detail="Incorrect verification code.")
 
     record.consumed = True
     db.commit()
+    audit("login_success", request, user_id=user.id, role=user.role, mfa="email_otp")
     token = create_access_token({"sub": user.email, "role": user.role})
     return {"access_token": token, "token_type": "bearer", "user": user}
 
 
 @router.post("/login/resend-otp", response_model=LoginResponse)
-def resend_admin_login_otp(data: AdminOtpResendRequest, db: Session = Depends(get_db)):
+def resend_admin_login_otp(data: AdminOtpResendRequest, db: Session = Depends(get_db), _rl=Depends(limit_otp_send)):
     user = admin_from_login_token(data.login_token, db)
     return send_admin_login_otp(user, db)
 
 
 @router.post("/forgot-password", response_model=ForgotPasswordResponse)
-def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
+def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db), _rl=Depends(limit_otp_send)):
     """Send a one-time code to the account email for password reset."""
     email = data.email.lower().strip()
     now = datetime.utcnow()
@@ -338,7 +392,7 @@ def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/verify-otp", response_model=VerifyOtpResponse)
-def verify_otp(data: VerifyOtpRequest, db: Session = Depends(get_db)):
+def verify_otp(data: VerifyOtpRequest, db: Session = Depends(get_db), _rl=Depends(limit_otp_verify)):
     """Verify the emailed OTP and return a short-lived password reset token."""
     email = data.email.lower().strip()
     now = datetime.utcnow()
@@ -385,7 +439,9 @@ def verify_otp(data: VerifyOtpRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/reset-password", response_model=MessageResponse)
-def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
+def reset_password(
+    data: ResetPasswordRequest, request: Request, db: Session = Depends(get_db), _rl=Depends(limit_reset)
+):
     """Set a new password using the token issued after OTP verification."""
     payload = decode_token(data.reset_token)
     if (
@@ -412,12 +468,18 @@ def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
             detail="Choose a password that is different from your current one.",
         )
 
+    enforce_password_policy(data.new_password, user.email)
     user.hashed_password = hash_password(data.new_password)
+    # Sign out every existing session and clear any lockout.
+    user.password_changed_at = datetime.now(timezone.utc)
+    user.failed_login_attempts = 0
+    user.locked_until = None
     db.query(PasswordResetOTP).filter(
         PasswordResetOTP.email == email,
         PasswordResetOTP.consumed.is_(False),
     ).update({PasswordResetOTP.consumed: True}, synchronize_session=False)
     db.commit()
+    audit("password_reset", request, user_id=user.id)
     return {"message": "Password updated. You can now sign in."}
 
 
@@ -465,21 +527,31 @@ def list_users(db: Session = Depends(get_db), _admin: User = Depends(require_adm
 
 
 @router.patch("/users/{user_id}/role", response_model=UserOut)
-def update_user_role(user_id: int, data: UserRoleUpdate, db: Session = Depends(get_db), _admin: User = Depends(require_admin)):
+def update_user_role(
+    user_id: int,
+    data: UserRoleUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
     """Admin only: change a user's role."""
+    if user_id == admin.id:
+        raise HTTPException(status_code=400, detail="You cannot change your own role")
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if data.role not in VALID_ROLES:
         raise HTTPException(status_code=400, detail=f"Invalid role. Choose from: {', '.join(VALID_ROLES)}")
+    previous = user.role
     user.role = data.role
     db.commit()
     db.refresh(user)
+    audit("role_changed", request, admin_id=admin.id, user_id=user.id, old=previous, new=user.role)
     return user
 
 
 @router.delete("/users/{user_id}", status_code=204)
-def delete_user(user_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+def delete_user(user_id: int, request: Request, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     """Admin only: permanently delete a user.
 
     Database rules handle related rows: crops, bookings, notifications, chats and
@@ -501,6 +573,7 @@ def delete_user(user_id: int, db: Session = Depends(get_db), admin: User = Depen
     db.query(AdminLoginOTP).filter(AdminLoginOTP.email == user.email).delete(synchronize_session=False)
     db.query(User).filter(User.id == user.id).delete(synchronize_session=False)
     db.commit()
+    audit("user_deleted", request, admin_id=admin.id, user_id=user_id, role=user.role)
     return Response(status_code=204)
 
 

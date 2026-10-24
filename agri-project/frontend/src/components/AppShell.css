@@ -359,7 +359,7 @@
 }
 
 .sa-lang .lang-select { height: 40px; border-color: #e2e9df; }
-.sa-lang .lang-select select { max-width: 96px; font-size: 12px; }
+.sa-lang .lang-select select { max-width: 150px; font-size: 12px; text-overflow: ellipsis; }
 
 .sa-icon-btn {
   position: relative;

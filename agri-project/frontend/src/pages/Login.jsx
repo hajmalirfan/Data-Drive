@@ -11,6 +11,7 @@ import {
   resendAdminLoginOtp,
 } from '../services/authService'
 import farmerImage from '../assets/farmer-logo.jpg'
+import { meetsPasswordPolicy } from '../utils/passwordPolicy'
 import './Login.css'
 import { useLanguage } from '../context/LanguageContext'
 
@@ -142,8 +143,8 @@ export default function Login() {
       setError(t('login.errEmail'))
       return
     }
-    if (password.length < 6) {
-      setError(t('login.errPassword'))
+    if (!meetsPasswordPolicy(password)) {
+      setError(t('login.errPasswordPolicy'))
       return
     }
     if (password !== confirmPassword) {
@@ -371,7 +372,7 @@ export default function Login() {
                   <input
                     type={showPw ? 'text' : 'password'}
                     autoComplete="new-password"
-                    placeholder={t('login.passwordNewPlaceholder')}
+                    placeholder={t('login.passwordPolicyPlaceholder')}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                   />

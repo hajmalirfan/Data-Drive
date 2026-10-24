@@ -14,7 +14,7 @@ UserRole = Literal[
 
 class UserSignup(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
-    password: str = Field(min_length=6, max_length=128)
+    password: str = Field(min_length=1, max_length=128)  # strength rules: security_policy
     email: EmailStr | None = None
     phone: str | None = Field(default=None, max_length=20)
     location: str | None = Field(default=None, max_length=255)
@@ -24,7 +24,7 @@ class UserLogin(BaseModel):
     identifier: str | None = Field(default=None, max_length=255)
     email: EmailStr | None = None
     phone: str | None = Field(default=None, max_length=20)
-    password: str
+    password: str = Field(max_length=256)
 
 class UserOut(BaseModel):
     id: int
@@ -85,7 +85,7 @@ class VerifyOtpRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     reset_token: str = Field(min_length=10)
-    new_password: str = Field(min_length=6, max_length=128)
+    new_password: str = Field(min_length=1, max_length=128)  # strength rules: security_policy
 
 class ForgotPasswordResponse(BaseModel):
     message: str

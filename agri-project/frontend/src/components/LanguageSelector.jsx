@@ -16,7 +16,7 @@ export default function LanguageSelector({ compact = false }) {
       >
         {languages.map((l) => (
           <option key={l.code} value={l.code}>
-            {l.native} ({l.label})
+            {l.native === l.label ? l.native : `${l.native} (${l.label})`}
           </option>
         ))}
       </select>

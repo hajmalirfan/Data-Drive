@@ -4,7 +4,7 @@ from sqlalchemy import inspect
 
 from app.core.config import settings
 from app.core.database import Base, engine
-from app.core import metrics
+from app.core import metrics, security_policy
 from app.models import chat, login_otp, metrics as metrics_model, operations, password_reset, user, user_document  # noqa: F401 - register models
 from app.routers import admin, auth, bookings, chat as chat_router, crops, dashboard, documents, markets, trucks
 
@@ -67,6 +67,9 @@ def migrate_user_vehicle_fields():
         "vehicle_type": "VARCHAR(80)",
         "vehicle_number": "VARCHAR(40)",
         "vehicle_capacity_kg": "FLOAT",
+        "failed_login_attempts": "INTEGER DEFAULT 0",
+        "locked_until": "TIMESTAMP WITH TIME ZONE",
+        "password_changed_at": "TIMESTAMP WITH TIME ZONE",
     }
     with engine.begin() as conn:
         for name, sql_type in additions.items():
@@ -85,21 +88,32 @@ try:
 except Exception as e:
     print(f"Database initialization notice: {e}")
 
-app = FastAPI(title=settings.APP_NAME)
+security_policy.check_configuration()
+
+# API docs are for development only.
+_docs = not security_policy.is_production()
+app = FastAPI(
+    title=settings.APP_NAME,
+    docs_url="/docs" if _docs else None,
+    redoc_url="/redoc" if _docs else None,
+    openapi_url="/openapi.json" if _docs else None,
+)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        settings.FRONTEND_URL,
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # Only the configured frontend may call the API; local dev origins outside production.
+    allow_origins=[settings.FRONTEND_URL] + (
+        [] if security_policy.is_production() else ["http://localhost:5173", "http://127.0.0.1:5173"]
+    ),
+    # Auth uses bearer tokens, not cookies, so credentials are never sent cross-origin.
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+    max_age=600,
 )
 
 metrics.install(app)
+security_policy.install(app)
 
 app.include_router(auth.router)
 app.include_router(admin.router)
@@ -114,7 +128,7 @@ app.include_router(dashboard.router)
 
 @app.get("/")
 def root():
-    return {"message": "SmartAg Ops Advisor API running", "docs": "/docs"}
+    return {"message": "SmartAg Ops Advisor API running"}
 
 
 @app.get("/api/health")

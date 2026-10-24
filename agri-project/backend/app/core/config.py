@@ -2,6 +2,14 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     APP_NAME: str = "SmartAg Ops Advisor API"
+    # "production" enables HSTS, hides API docs and refuses weak secrets.
+    ENVIRONMENT: str = "development"
+
+    # Security policy (see SECURITY.md)
+    PASSWORD_MIN_LENGTH: int = 8
+    LOGIN_MAX_FAILURES: int = 5
+    LOGIN_LOCKOUT_MINUTES: int = 15
+    MAX_REQUEST_BYTES: int = 12 * 1024 * 1024
     SECRET_KEY: str = "change-this-to-a-long-random-secret-key"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 1 day
