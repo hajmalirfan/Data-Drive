@@ -92,8 +92,8 @@ function MarketMap({ markets }) {
       aria-label={t('dash.mapLabel')}
     >
       <TileLayer
-        attribution="&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors"
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution={'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}
+        url={'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'}
         maxZoom={19}
       />
       {locatedMarkets.map((market) => (
@@ -394,7 +394,6 @@ function FarmerDashboard() {
       <section className="ui-card dbm-compare">
         <div className="dbm-compare-head">
           <div>
-            <h3><Icon name="scale" size={17} />{t('dash.compareMarkets')}</h3>
             <p>{t('dash.compareSub')}</p>
           </div>
           <div className="dbm-compare-controls">
@@ -528,7 +527,6 @@ function FarmerDashboard() {
         <div className="ui-card">
           <div className="ui-card-head">
             <div>
-              <h3><Icon name="prices" size={16} />{t('dash.latestPrices')}</h3>
               <p>{t('dash.latestPricesSub')}</p>
             </div>
             <Link to="/market-prices" className="ui-link">{t('dash.allPrices')}</Link>
@@ -565,13 +563,6 @@ function FarmerDashboard() {
         </div>
 
         <div className="ui-card">
-          <div className="ui-card-head">
-            <div>
-              <h3><Icon name="truck" size={16} />{t('dash.availableTrucks')}</h3>
-              <p>{t('dash.availableTrucksSub')}</p>
-            </div>
-            <Link to="/trucks" className="ui-link">{t('dash.bookTruck')}</Link>
-          </div>
           <div className="ui-card-body">
             {trucks.length === 0 ? (
               <div className="ui-empty">
