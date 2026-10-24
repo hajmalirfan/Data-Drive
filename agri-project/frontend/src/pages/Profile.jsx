@@ -22,7 +22,7 @@ const MAX_DOCUMENT_MB = 5
 const ACCEPTED_IMAGES = 'image/jpeg,image/png,image/webp'
 
 // pending: undefined (no change) | { file, url } (new image to upload) | 'remove'
-function DocumentSlot({ slot, doc, pending, disabled, onPick, onRemove }) {
+function DocumentSlot({ slot, doc, pending, required, disabled, onPick, onRemove }) {
   const { t } = useLanguage()
   const inputRef = useRef(null)
   const [savedPreview, setSavedPreview] = useState('')
@@ -59,12 +59,14 @@ function DocumentSlot({ slot, doc, pending, disabled, onPick, onRemove }) {
   const removed = pending === 'remove'
   const preview = pending?.url || (removed ? '' : savedPreview)
   const hasImage = Boolean(pending?.file) || (Boolean(doc) && !removed)
+  // A required image can be replaced, but a saved one cannot be removed.
+  const canRemove = Boolean(pending?.file) || (hasImage && !required)
   const state = pending ? 'pending' : doc ? 'ok' : ''
 
   return (
     <div className={`doc-slot ${hasImage ? 'has-doc' : ''} ${pending ? 'is-pending' : ''}`}>
       <div className="doc-slot-head">
-        <strong>{t(slot.labelKey)}</strong>
+        <strong>{t(slot.labelKey)}{required && <span className="ui-required" aria-hidden="true">*</span>}</strong>
         <span className={`doc-slot-state ${state}`}>
           {pending
             ? (removed ? t('profile.docWillRemove') : t('profile.docUnsaved'))
@@ -97,7 +99,7 @@ function DocumentSlot({ slot, doc, pending, disabled, onPick, onRemove }) {
         <button type="button" className="ui-btn ui-btn-outline ui-btn-sm" onClick={() => inputRef.current?.click()} disabled={disabled}>
           <Icon name="arrowUp" size={13} />{hasImage ? t('profile.docReplace') : t('profile.docUpload')}
         </button>
-        {hasImage && (
+        {canRemove && (
           <button type="button" className="ui-btn ui-btn-soft ui-btn-sm doc-slot-remove" onClick={onRemove} disabled={disabled}>
             <Icon name="trash" size={13} />{t('profile.docRemove')}
           </button>
@@ -207,6 +209,18 @@ export default function Profile() {
     setError('')
     setNotice('')
     if (form.full_name.trim().length < 2) { setError(t('login.errFullName')); return }
+    if (role === 'truck_operator') {
+      const blank = ['phone', 'location', 'vehicle_type', 'vehicle_number', 'vehicle_capacity_kg']
+        .some((field) => !form[field].trim())
+      if (blank) { setError(t('profile.errRequired')); return }
+      if (form.vehicle_number.trim().length < 3) { setError(t('trucks.errVehicle')); return }
+      if (!(Number(form.vehicle_capacity_kg) > 0)) { setError(t('profile.errCapacity')); return }
+      const missingDoc = DOCUMENT_SLOTS.some(({ type }) => {
+        const pending = pendingDocs[type]
+        return pending ? pending === 'remove' : !docs[type]
+      })
+      if (missingDoc) { setError(t('profile.docRequired')); return }
+    }
     setSaving(true)
     try {
       const updated = await updateProfile({
@@ -314,8 +328,9 @@ export default function Profile() {
             {editing && (
             <div className="ui-card-body" id="profile-edit-body">
               <form className="profile-form" onSubmit={submit}>
+                {isOperator && <p className="ui-required-note profile-required-note">{t('common.requiredNote')}</p>}
                 <label className="ui-field">
-                  <span className="ui-label">{t('profile.fullName')}</span>
+                  <span className="ui-label">{t('profile.fullName')}<span className="ui-required" aria-hidden="true">*</span></span>
                   <input
                     className="ui-input"
                     value={form.full_name}
@@ -325,10 +340,11 @@ export default function Profile() {
                   />
                 </label>
                 <label className="ui-field">
-                  <span className="ui-label">{t('profile.mobileNumber')}</span>
+                  <span className="ui-label">{t('profile.mobileNumber')}{isOperator && <span className="ui-required" aria-hidden="true">*</span>}</span>
                   <input
                     className="ui-input"
                     type="tel"
+                    required={isOperator}
                     value={form.phone}
                     onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
                     placeholder="98765 43210"
@@ -336,9 +352,10 @@ export default function Profile() {
                   <span className="ui-hint">{t('profile.mobileHint')}</span>
                 </label>
                 <label className="ui-field">
-                  <span className="ui-label">{t('profile.villageTown')}</span>
+                  <span className="ui-label">{t('profile.villageTown')}{isOperator && <span className="ui-required" aria-hidden="true">*</span>}</span>
                   <input
                     className="ui-input"
+                    required={isOperator}
                     value={form.location}
                     onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
                     placeholder={t('login.villagePlaceholder')}
@@ -356,27 +373,31 @@ export default function Profile() {
                 {role === 'truck_operator' && (
                   <>
                     <label className="ui-field">
-                      <span className="ui-label">{t('profile.vehicleType')}</span>
+                      <span className="ui-label">{t('profile.vehicleType')}<span className="ui-required" aria-hidden="true">*</span></span>
                       <input
                         className="ui-input"
+                        required
                         value={form.vehicle_type}
                         onChange={(event) => setForm((prev) => ({ ...prev, vehicle_type: event.target.value }))}
                         maxLength={80}
                       />
                     </label>
                     <label className="ui-field">
-                      <span className="ui-label">{t('profile.vehicleNumber')}</span>
+                      <span className="ui-label">{t('profile.vehicleNumber')}<span className="ui-required" aria-hidden="true">*</span></span>
                       <input
                         className="ui-input"
+                        required
+                        minLength={3}
                         value={form.vehicle_number}
                         onChange={(event) => setForm((prev) => ({ ...prev, vehicle_number: event.target.value }))}
                         maxLength={40}
                       />
                     </label>
                     <label className="ui-field">
-                      <span className="ui-label">{t('profile.vehicleCapacity')}</span>
+                      <span className="ui-label">{t('profile.vehicleCapacity')}<span className="ui-required" aria-hidden="true">*</span></span>
                       <input
                         className="ui-input"
+                        required
                         type="number"
                         min="0.01"
                         step="any"
@@ -400,6 +421,7 @@ export default function Profile() {
                               slot={slot}
                               doc={docs[slot.type]}
                               pending={pendingDocs[slot.type]}
+                              required
                               disabled={saving}
                               onPick={(file) => setPendingDoc(slot.type, { file, url: URL.createObjectURL(file) })}
                               onRemove={() => setPendingDoc(slot.type, 'remove')}

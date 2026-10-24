@@ -83,6 +83,7 @@
 .profile-edit-toggle:hover .profile-edit-chevron { background: #e5f2e7; }
 .profile-edit-toggle.open .profile-edit-chevron { transform: rotate(180deg); }
 .profile-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.profile-required-note { grid-column: 1 / -1; }
 .profile-form-actions {
   grid-column: span 2;
   display: flex;

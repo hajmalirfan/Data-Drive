@@ -183,18 +183,25 @@ export default function Trucks() {
     event.preventDefault()
     setTruckError('')
     if (truckForm.vehicle_number.trim().length < 3) { setTruckError(t('trucks.errVehicle')); return }
+    if (truckForm.truck_type.trim().length < 2 || truckForm.last_location.trim().length < 2
+      || truckForm.base_fare === '' || truckForm.price_per_km === '') {
+      setTruckError(t('profile.errRequired')); return
+    }
+    if (!(Number(truckForm.price_per_km) > 0) || Number(truckForm.base_fare) < 0) {
+      setTruckError(t('trucks.errRates')); return
+    }
     const capacityKg = Number(user?.vehicle_capacity_kg)
     if (!capacityKg) { setTruckError(t('trucks.profileCapacityRequired')); return }
     setSaving(true)
     try {
       await createTruck({
         vehicle_number: truckForm.vehicle_number.trim(),
-        truck_type: truckForm.truck_type.trim() || 'Open body',
+        truck_type: truckForm.truck_type.trim(),
         capacity_kg: capacityKg,
         available_capacity_kg: truckForm.available_capacity_kg === '' ? null : Number(truckForm.available_capacity_kg),
         available_from: truckForm.available_from || null,
-        price_per_km: Number(truckForm.price_per_km) || 28,
-        base_fare: Number(truckForm.base_fare) || 500,
+        price_per_km: Number(truckForm.price_per_km),
+        base_fare: Number(truckForm.base_fare),
         has_passenger_seat: truckForm.has_passenger_seat,
         last_location: truckForm.last_location.trim(),
         status: truckForm.status,
@@ -594,13 +601,14 @@ export default function Trucks() {
           )}
         >
           <form id="truck-form" className="ui-form-grid" onSubmit={submitTruck}>
+            <p className="ui-required-note span-2">{t('common.requiredNote')}</p>
             <label className="ui-field">
-              <span className="ui-label">{t('trucks.vehicleNumber')}</span>
+              <span className="ui-label">{t('trucks.vehicleNumber')}<span className="ui-required" aria-hidden="true">*</span></span>
               <input className="ui-input" value={truckForm.vehicle_number} onChange={(event) => setTruckForm((prev) => ({ ...prev, vehicle_number: event.target.value }))} placeholder="TN 60 AB 1234" required />
             </label>
             <label className="ui-field">
-              <span className="ui-label">{t('trucks.truckType')}</span>
-              <input className="ui-input" value={truckForm.truck_type} onChange={(event) => setTruckForm((prev) => ({ ...prev, truck_type: event.target.value }))} placeholder="Open body" />
+              <span className="ui-label">{t('trucks.truckType')}<span className="ui-required" aria-hidden="true">*</span></span>
+              <input className="ui-input" value={truckForm.truck_type} required onChange={(event) => setTruckForm((prev) => ({ ...prev, truck_type: event.target.value }))} placeholder="Open body" />
             </label>
             <label className="ui-field">
               <span className="ui-label">{t('trucks.freeCapacityKg')}</span>
@@ -611,8 +619,8 @@ export default function Trucks() {
               <input className="ui-input" type="date" value={truckForm.available_from} onChange={(event) => setTruckForm((prev) => ({ ...prev, available_from: event.target.value }))} />
             </label>
             <label className="ui-field">
-              <span className="ui-label">{t('common.status')}</span>
-              <select className="ui-select" value={truckForm.status} onChange={(event) => setTruckForm((prev) => ({ ...prev, status: event.target.value }))}>
+              <span className="ui-label">{t('common.status')}<span className="ui-required" aria-hidden="true">*</span></span>
+              <select className="ui-select" required value={truckForm.status} onChange={(event) => setTruckForm((prev) => ({ ...prev, status: event.target.value }))}>
                 <option value="available">{t('common.available')}</option>
                 <option value="reserved">{t('common.reserved')}</option>
                 <option value="on_trip">{t('status.onTrip')}</option>
@@ -620,16 +628,16 @@ export default function Trucks() {
               </select>
             </label>
             <label className="ui-field">
-              <span className="ui-label">{t('trucks.baseFare')}</span>
-              <input className="ui-input" type="number" min="0" value={truckForm.base_fare} onChange={(event) => setTruckForm((prev) => ({ ...prev, base_fare: event.target.value }))} />
+              <span className="ui-label">{t('trucks.baseFare')}<span className="ui-required" aria-hidden="true">*</span></span>
+              <input className="ui-input" type="number" min="0" step="any" value={truckForm.base_fare} required onChange={(event) => setTruckForm((prev) => ({ ...prev, base_fare: event.target.value }))} />
             </label>
             <label className="ui-field">
-              <span className="ui-label">{t('trucks.ratePerKm')}</span>
-              <input className="ui-input" type="number" min="0" value={truckForm.price_per_km} onChange={(event) => setTruckForm((prev) => ({ ...prev, price_per_km: event.target.value }))} />
+              <span className="ui-label">{t('trucks.ratePerKm')}<span className="ui-required" aria-hidden="true">*</span></span>
+              <input className="ui-input" type="number" min="0.01" step="any" value={truckForm.price_per_km} required onChange={(event) => setTruckForm((prev) => ({ ...prev, price_per_km: event.target.value }))} />
             </label>
             <label className="ui-field span-2">
-              <span className="ui-label">{t('trucks.currentLocation')}</span>
-              <input className="ui-input" value={truckForm.last_location} onChange={(event) => setTruckForm((prev) => ({ ...prev, last_location: event.target.value }))} placeholder="Theni bus stand" />
+              <span className="ui-label">{t('trucks.currentLocation')}<span className="ui-required" aria-hidden="true">*</span></span>
+              <input className="ui-input" value={truckForm.last_location} required onChange={(event) => setTruckForm((prev) => ({ ...prev, last_location: event.target.value }))} placeholder="Theni bus stand" />
             </label>
             <label className="truck-check span-2">
               <input type="checkbox" checked={truckForm.has_passenger_seat} onChange={(event) => setTruckForm((prev) => ({ ...prev, has_passenger_seat: event.target.checked }))} />

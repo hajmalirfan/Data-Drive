@@ -488,6 +488,16 @@ def me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
+# Profile fields a truck operator must keep filled in (marked * on the profile form).
+OPERATOR_REQUIRED_FIELDS = {
+    "phone": "mobile number",
+    "location": "village / town",
+    "vehicle_type": "vehicle type",
+    "vehicle_number": "vehicle number",
+    "vehicle_capacity_kg": "vehicle capacity",
+}
+
+
 @router.patch("/me", response_model=UserOut)
 def update_me(
     data: UserProfileUpdate,
@@ -514,6 +524,14 @@ def update_me(
         if existing:
             raise HTTPException(status_code=400, detail="Mobile number is already in use")
         current_user.phone = phone
+    if current_user.role == "truck_operator":
+        missing = [label for field, label in OPERATOR_REQUIRED_FIELDS.items() if not getattr(current_user, field)]
+        if missing:
+            db.rollback()
+            raise HTTPException(status_code=422, detail=f"Required for truck operators: {', '.join(missing)}")
+        if len(current_user.vehicle_number) < 3:
+            db.rollback()
+            raise HTTPException(status_code=422, detail="Enter a valid vehicle number")
     db.commit()
     db.refresh(current_user)
     return current_user

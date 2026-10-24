@@ -116,6 +116,9 @@ async def upload_document(
 
 @router.delete("/me/documents/{doc_type}", status_code=204)
 def delete_document(doc_type: str, db: Session = Depends(get_db), user: User = Depends(require_document_owner)):
+    if user.role == "truck_operator":
+        # Permit and both licence sides are mandatory: replace an image, never leave the slot empty.
+        raise HTTPException(status_code=400, detail="This document is required. Upload a new image to replace it.")
     db.query(UserDocument).filter(
         UserDocument.user_id == user.id, UserDocument.doc_type == check_doc_type(doc_type)
     ).delete(synchronize_session=False)

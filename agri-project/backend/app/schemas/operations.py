@@ -122,17 +122,17 @@ class ComparisonOut(BaseModel):
 # ---------- Trucks ----------
 class TruckCreate(BaseModel):
     vehicle_number: str = Field(min_length=3, max_length=40)
-    truck_type: str = Field(default="Open body", max_length=80)
+    truck_type: str = Field(min_length=2, max_length=80)
     capacity_kg: float = Field(gt=0)
     available_capacity_kg: float | None = Field(default=None, ge=0)
     route_from: str = Field(default="", max_length=160)
     route_to: str = Field(default="", max_length=160)
     available_from: date | None = None
-    price_per_km: float = Field(default=28, ge=0)
-    base_fare: float = Field(default=500, ge=0)
+    price_per_km: float = Field(gt=0)
+    base_fare: float = Field(ge=0)
     status: str = Field(default="available", max_length=24)
     has_passenger_seat: bool = False
-    last_location: str = Field(default="", max_length=255)
+    last_location: str = Field(min_length=2, max_length=255)
 
 
 class TruckUpdate(BaseModel):
