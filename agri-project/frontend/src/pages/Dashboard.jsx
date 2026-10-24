@@ -4,7 +4,7 @@ import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaf
 import 'leaflet/dist/leaflet.css'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { compareMarkets, getDashboard } from '../services/operationsService'
+import { getDashboard } from '../services/operationsService'
 import Icon from '../components/Icons'
 import Modal from '../components/Modal'
 import DriverDashboard from './DriverDashboard'
@@ -66,6 +66,75 @@ function Trend({ value }) {
     )
   }
   return <span className="ui-trend-flat">0.0%</span>
+}
+
+function RevenueChart({ history }) {
+  const { t, lang } = useLanguage()
+  const values = history.map((entry) => Number(entry.revenue) || 0)
+  const max = Math.max(...values, 1)
+  const points = history.map((entry, index) => {
+    const x = history.length > 1 ? 36 + (index * 628) / (history.length - 1) : 350
+    const y = 174 - ((Number(entry.revenue) || 0) / max) * 142
+    return { ...entry, x, y }
+  })
+  const line = points.map((point) => `${point.x},${point.y}`).join(' ')
+  const area = points.length ? `36,174 ${line} 664,174` : ''
+  const total = values.reduce((sum, value) => sum + value, 0)
+  const monthLabel = (value) => {
+    const [year, month] = value.split('-').map(Number)
+    return new Intl.DateTimeFormat(lang, { month: 'short', timeZone: 'UTC' })
+      .format(new Date(Date.UTC(year, month - 1, 1)))
+  }
+
+  return (
+    <section className="ui-card dbm-revenue-card">
+      <div className="ui-card-head">
+        <div>
+          <h3><Icon name="prices" size={16} />{t('dash.revenueTitle')}</h3>
+          <p>{t('dash.revenueSub')}</p>
+        </div>
+        <div className="dbm-revenue-total">
+          <small>{t('dash.revenueSixMonths')}</small>
+          <strong>{inr(total)}</strong>
+        </div>
+      </div>
+      <div className="ui-card-body">
+        {total <= 0 ? (
+          <div className="ui-empty dbm-revenue-empty">
+            <span className="ui-empty-icon"><Icon name="prices" size={21} /></span>
+            <strong>{t('dash.revenueEmpty')}</strong>
+            <p>{t('dash.revenueEmptySub')}</p>
+          </div>
+        ) : (
+          <div className="dbm-revenue-chart">
+            <svg viewBox="0 0 700 216" role="img" aria-label={t('dash.revenueTitle')}>
+              <defs>
+                <linearGradient id="revenue-fill" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor="#2e9654" stopOpacity=".22" />
+                  <stop offset="100%" stopColor="#2e9654" stopOpacity=".02" />
+                </linearGradient>
+              </defs>
+              {[32, 79, 126, 174].map((y) => (
+                <line key={y} x1="36" x2="664" y1={y} y2={y} className="dbm-revenue-gridline" />
+              ))}
+              <polygon points={area} fill="url(#revenue-fill)" />
+              <polyline points={line} className="dbm-revenue-line" />
+              {points.map((point) => (
+                <g key={point.month}>
+                  <circle cx={point.x} cy={point.y} r="4" className="dbm-revenue-point">
+                    <title>{`${monthLabel(point.month)}: ${inr(point.revenue)}`}</title>
+                  </circle>
+                  <text x={point.x} y="204" textAnchor="middle" className="dbm-revenue-label">
+                    {monthLabel(point.month)}
+                  </text>
+                </g>
+              ))}
+            </svg>
+          </div>
+        )}
+      </div>
+    </section>
+  )
 }
 
 function MarketMap({ markets }) {
@@ -149,31 +218,14 @@ function FarmerDashboard() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [selectedCropId, setSelectedCropId] = useState('')
-  const [quantity, setQuantity] = useState('')
-  const [comparison, setComparison] = useState(null)
-  const [comparing, setComparing] = useState(false)
-  const [comparisonError, setComparisonError] = useState('')
-  const [showAssumptions, setShowAssumptions] = useState(false)
   const [driverTruck, setDriverTruck] = useState(null)
 
   const load = () => {
     setLoading(true)
     setError('')
-    setComparisonError('')
     getDashboard()
       .then((payload) => {
         setData(payload)
-        const top = [...(payload.crops || [])].sort((a, b) => b.quantity_kg - a.quantity_kg)[0]
-        if (top) {
-          setSelectedCropId(String(top.id))
-          setQuantity(String(top.quantity_kg))
-          setComparison(payload.comparison || null)
-        } else {
-          setSelectedCropId('')
-          setQuantity('')
-          setComparison(payload.comparison || null)
-        }
       })
       .catch((err) => setError(err.response?.data?.detail || t('dash.loadError')))
       .finally(() => setLoading(false))
@@ -181,50 +233,13 @@ function FarmerDashboard() {
 
   useEffect(() => { load() }, []) // eslint-disable-line
 
-  useEffect(() => {
-    let active = true
-    if (!selectedCropId || !quantity || Number(quantity) <= 0) {
-      setComparing(false)
-      setComparisonError('')
-      return () => { active = false }
-    }
-
-    setComparing(true)
-    setComparisonError('')
-    const timer = setTimeout(() => {
-      compareMarkets({ crop_id: Number(selectedCropId), quantity: Number(quantity) })
-        .then((payload) => { if (active) setComparison(payload) })
-        .catch((err) => {
-          if (!active) return
-          setComparison(null)
-          const detail = err.response?.data?.detail
-          setComparisonError(typeof detail === 'string' ? detail : t('dash.loadError'))
-        })
-        .finally(() => { if (active) setComparing(false) })
-    }, 320)
-    return () => {
-      active = false
-      clearTimeout(timer)
-    }
-  }, [selectedCropId, quantity, t])
-
   const stats = data?.stats || {}
   const crops = data?.crops || []
   const markets = data?.markets || []
   const prices = data?.prices || []
   const trucks = data?.trucks || []
-  const options = comparison?.options || []
-  const best = options.find((option) => option.market_id === comparison?.recommended_market_id) || options[0]
-  const nearest = [...options].sort((a, b) => a.distance_km - b.distance_km)[0]
-  const extraProfit = best && nearest ? Number(best.breakdown.net_proceeds) - Number(nearest.breakdown.net_proceeds) : 0
-  const bestPrice = best?.price_per_kg
-  const selectedCrop = crops.find((crop) => String(crop.id) === String(selectedCropId))
-
-  const handleCropChange = (value) => {
-    setSelectedCropId(value)
-    const crop = crops.find((item) => String(item.id) === value)
-    if (crop) setQuantity(String(crop.quantity_kg))
-  }
+  const revenueHistory = data?.revenue_history || []
+  const bestPrice = stats.best_price
 
   if (loading) {
     return (
@@ -270,8 +285,12 @@ function FarmerDashboard() {
           <span className="dbm-kpi-icon amber"><Icon name="prices" size={19} /></span>
           <span className="dbm-kpi-copy">
             <small>{t('dash.kpiBestPrice')}</small>
-            <strong>{bestPrice ? `₹${Number(bestPrice).toFixed(1)}/kg` : '—'}</strong>
-            <span>{best?.market_name || stats.best_market || t('dash.addMarketPrices')}</span>
+            <strong>{bestPrice ? `₹${Number(bestPrice.price_per_kg).toFixed(1)}/kg` : '—'}</strong>
+            <span>
+              {bestPrice
+                ? `${bestPrice.crop_name} · ${bestPrice.market_name}`
+                : t('dash.addMarketPrices')}
+            </span>
           </span>
           <span className="dbm-kpi-go"><Icon name="arrowRight" size={14} /></span>
         </Link>
@@ -281,15 +300,6 @@ function FarmerDashboard() {
             <small>{t('dash.kpiAvailableTrucks')}</small>
             <strong>{stats.available_trucks ?? 0}</strong>
             <span>{stats.active_bookings ?? 0} active bookings</span>
-          </span>
-          <span className="dbm-kpi-go"><Icon name="arrowRight" size={14} /></span>
-        </Link>
-        <Link to="/reports" className="dbm-kpi ui-card">
-          <span className="dbm-kpi-icon purple"><Icon name="reports" size={19} /></span>
-          <span className="dbm-kpi-copy">
-            <small>{t('dash.kpiEstimatedProfit')}</small>
-            <strong>{inr(stats.estimated_profit)}</strong>
-            <span>{stats.profit_crop ? `${stats.profit_crop} · ${kg(stats.profit_quantity_kg)}` : t('dash.noCropSelected')}</span>
           </span>
           <span className="dbm-kpi-go"><Icon name="arrowRight" size={14} /></span>
         </Link>
@@ -391,137 +401,7 @@ function FarmerDashboard() {
         </div>
       </section>
 
-      <section className="ui-card dbm-compare">
-        <div className="dbm-compare-head">
-          <div>
-            <p>{t('dash.compareSub')}</p>
-          </div>
-          <div className="dbm-compare-controls">
-            <label className="ui-field">
-              <span className="ui-label">{t('common.crop')}</span>
-              <select className="ui-select" value={selectedCropId} onChange={(e) => handleCropChange(e.target.value)}>
-                {crops.map((crop) => (
-                  <option key={crop.id} value={crop.id}>{crop.crop_name}{crop.variety ? ` · ${crop.variety}` : ''}</option>
-                ))}
-              </select>
-            </label>
-            <label className="ui-field">
-              <span className="ui-label">{t('common.quantityKg')}</span>
-              <input
-                className="ui-input"
-                type="number"
-                min="1"
-                step="1"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-              />
-            </label>
-          </div>
-        </div>
-
-        {comparisonError && <div className="ui-alert ui-alert-error" role="alert">{comparisonError}</div>}
-
-        <div className="dbm-compare-body">
-          <div className="dbm-compare-summary">
-            <span className="dbm-best-label"><Icon name="sparkles" size={14} />{t('dash.recommendedMandi')}</span>
-            {comparing ? (
-              <div className="ui-loading" style={{ padding: '28px 0' }}><span className="ui-spinner" />{t('dash.calculating')}</div>
-            ) : best ? (
-              <>
-                <h4>{best.market_name}</h4>
-                <p className="dbm-best-price">₹{Number(best.price_per_kg).toFixed(1)} <small>{t('common.perKg')}</small></p>
-                <div className="dbm-best-meta">
-                  <span><Icon name="route" size={13} /> {Number(best.distance_km).toFixed(0)} km</span>
-                  <span><Icon name="clock" size={13} /> {best.eta_minutes} min</span>
-                  <span><Icon name="prices" size={13} /> {best.source}</span>
-                </div>
-                <div className="dbm-best-net">
-                  <span>{t('dash.estimatedNetProceeds')}</span>
-                  <strong>{inr(best.breakdown.net_proceeds)}</strong>
-                </div>
-                {extraProfit > 0 && nearest && Number(nearest.market_id) !== Number(best.market_id) && (
-                  <p className="dbm-extra">
-                    That is <strong>{inr(extraProfit)}</strong> more than selling at {nearest.market_name}.
-                  </p>
-                )}
-                <Link to="/trucks" className="ui-btn ui-btn-primary ui-btn-block" style={{ marginTop: 4 }}>
-                  <Icon name="truck" size={15} /> Book a truck
-                </Link>
-              </>
-            ) : (
-              <div className="ui-empty" style={{ padding: '24px 0' }}>
-                <strong>{t('dash.noPricesForCrop')}</strong>
-                <p>{t('dash.noPricesForCropSub')}</p>
-              </div>
-            )}
-          </div>
-
-          <div className="dbm-compare-table">
-            {options.length === 0 ? (
-              <div className="ui-empty">
-                <span className="ui-empty-icon"><Icon name="scale" size={21} /></span>
-                <strong>{t('dash.nothingToCompare')}</strong>
-                <p>{t('dash.nothingToCompareSub')}</p>
-              </div>
-            ) : (
-              <>
-                <div className="ui-table-wrap">
-                  <table className="ui-table">
-                    <thead>
-                      <tr>
-                        <th>{t('common.market')}</th>
-                        <th className="num">{t('common.pricePerKg')}</th>
-                        <th className="num">{t('common.distance')}</th>
-                        <th className="num">{t('dash.thTravel')}</th>
-                        <th className="num">{t('dash.thNetProceeds')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {options.map((option) => {
-                        const recommended = option.market_id === comparison?.recommended_market_id
-                        return (
-                          <tr key={option.market_id} className={recommended ? 'recommended' : ''}>
-                            <td>
-                              <span className="dbm-market-name">
-                                <strong>{option.market_name}</strong>
-                                {recommended && <span className="ui-badge ui-badge-green">{t('dash.bestNet')}</span>}
-                                {option.is_stale && <span className="ui-badge ui-badge-amber">{t('dash.oldPrice')}</span>}
-                              </span>
-                              <small>{option.district}</small>
-                            </td>
-                            <td className="num">{inr(option.price_per_kg)}</td>
-                            <td className="num">{Number(option.distance_km).toFixed(0)} km</td>
-                            <td className="num">{option.eta_minutes} min</td>
-                            <td className="num"><strong>{inr(option.breakdown.net_proceeds)}</strong></td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                <button
-                  type="button"
-                  className="dbm-assumptions-toggle"
-                  onClick={() => setShowAssumptions((value) => !value)}
-                >
-                  <Icon name="info" size={13} />
-                  {showAssumptions ? t('dash.hideAssumptions') : t('dash.showAssumptions')}
-                </button>
-                {showAssumptions && (
-                  <ul className="dbm-assumptions">
-                    {(comparison?.assumptions || []).map((item) => <li key={item}>{item}</li>)}
-                    {selectedCrop?.cost_per_kg ? (
-                      <li>Profit uses your recorded cost of ₹{Number(selectedCrop.cost_per_kg).toFixed(2)} per kg.</li>
-                    ) : (
-                      <li>{t('dash.addCostHint')}</li>
-                    )}
-                  </ul>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      </section>
+      <RevenueChart history={revenueHistory} />
 
       <section className="dbm-bottom">
         <div className="ui-card">
@@ -546,6 +426,7 @@ function FarmerDashboard() {
                     <span className="dbm-price-crop">
                       <strong>{price.crop_name}</strong>
                       <small>{price.market_name}</small>
+                      {price.source === 'Agmarknet' && <small>Agmarknet · Government data</small>}
                     </span>
                     <span className="dbm-price-value">
                       <strong>₹{Number(price.price_per_kg).toFixed(1)}</strong>
@@ -634,20 +515,6 @@ function FarmerDashboard() {
           </div>
         </div>
       </section>
-
-      {best && (
-        <section className="dbm-insight">
-          <span className="dbm-insight-icon"><Icon name="sparkles" size={20} /></span>
-          <div>
-            <strong>{t('dash.smartInsight')}</strong>
-            <p>
-              For {selectedCrop?.crop_name || comparison?.crop_name} at {kg(quantity)}, {best.market_name}
-              {' '}gives the highest net return of {inr(best.breakdown.net_proceeds)} after all estimated costs.
-            </p>
-          </div>
-          <Link to="/markets" className="ui-btn ui-btn-outline ui-btn-sm">{t('dash.seeMarkets')}</Link>
-        </section>
-      )}
 
       {driverTruck && (
         <Modal

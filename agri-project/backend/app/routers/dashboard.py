@@ -1,7 +1,11 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.models.mandi import MandiPrice
 from app.models.operations import (
     Booking,
     CropStock,
@@ -13,13 +17,39 @@ from app.models.operations import (
 from app.models.user import User
 from app.routers.auth import get_current_user
 from app.routers.bookings import ACTIVE_STATUSES, booking_out
-from app.routers.markets import build_comparison, latest_price_rows, price_out
+from app.routers.markets import latest_price_rows, price_out
 from app.routers.trucks import truck_out
 from app.schemas.operations import CropOut, NotificationOut
 
 router = APIRouter(prefix="/api", tags=["dashboard"])
 
 STOCK_STATUSES = {"available", "reserved", "partially_sold"}
+
+
+def _revenue_history(bookings: list[Booking], months: int = 6) -> list[dict]:
+    now = datetime.utcnow()
+    current_month = now.year * 12 + now.month - 1
+    month_totals = {}
+    for offset in range(months - 1, -1, -1):
+        year, month_index = divmod(current_month - offset, 12)
+        month_totals[(year, month_index + 1)] = 0.0
+
+    for booking in bookings:
+        if (
+            booking.status != "delivered"
+            or booking.delivered_at is None
+            or booking.actual_sold_quantity_kg is None
+            or booking.actual_price_per_kg is None
+        ):
+            continue
+        key = (booking.delivered_at.year, booking.delivered_at.month)
+        if key in month_totals:
+            month_totals[key] += booking.actual_sold_quantity_kg * booking.actual_price_per_kg
+
+    return [
+        {"month": f"{year:04d}-{month:02d}", "revenue": round(revenue, 2)}
+        for (year, month), revenue in month_totals.items()
+    ]
 
 
 def _user_crops(db: Session, user: User) -> list[CropStock]:
@@ -44,6 +74,9 @@ def _user_bookings(db: Session, user: User) -> list[Booking]:
 
 def _price_list(db: Session, crop_names: list[str], limit: int = 8):
     pairs = latest_price_rows(db, crop_names or None)
+    if not pairs:
+        return _government_price_list(db, crop_names, limit)
+
     market_ids = {price.market_id for price, _ in pairs}
     markets = db.query(Market).filter(Market.id.in_(market_ids)).all() if market_ids else []
     names = {market.id: market.name for market in markets}
@@ -55,12 +88,163 @@ def _price_list(db: Session, crop_names: list[str], limit: int = 8):
     return output
 
 
+def _government_price_list(db: Session, crop_names: list[str], limit: int):
+    latest_date = db.query(func.max(MandiPrice.arrival_date)).scalar()
+    if not latest_date:
+        return []
+
+    query = db.query(MandiPrice).filter(
+        MandiPrice.arrival_date == latest_date,
+        MandiPrice.modal_price.is_not(None),
+    )
+    normalized_crops = [name.strip().lower() for name in crop_names if name.strip()]
+    if normalized_crops:
+        query = query.filter(
+            func.lower(func.trim(MandiPrice.commodity)).in_(normalized_crops)
+        )
+    prices = query.order_by(MandiPrice.modal_price.desc(), MandiPrice.id.asc()).limit(limit).all()
+
+    if not prices and normalized_crops:
+        prices = (
+            db.query(MandiPrice)
+            .filter(
+                MandiPrice.arrival_date == latest_date,
+                MandiPrice.modal_price.is_not(None),
+            )
+            .order_by(MandiPrice.modal_price.desc(), MandiPrice.id.asc())
+            .limit(limit)
+            .all()
+        )
+
+    return [
+        {
+            "id": f"mandi-{price.id}",
+            "crop_name": price.commodity,
+            "market_name": f"{price.market} · {price.district}, {price.state}",
+            "price_per_kg": round(price.modal_price / 100, 2),
+            "trend_pct": None,
+            "observed_at": f"{price.arrival_date.isoformat()}T00:00:00+05:30",
+            "source": "Agmarknet",
+        }
+        for price in prices
+    ]
+
+
+def _best_nearby_price(db: Session, crop_names: list[str]):
+    pairs = latest_price_rows(db, crop_names or None)
+    market_ids = {price.market_id for price, _ in pairs}
+    markets = (
+        db.query(Market)
+        .filter(Market.id.in_(market_ids), Market.distance_km <= 100)
+        .all()
+        if market_ids
+        else []
+    )
+    market_map = {market.id: market for market in markets}
+    candidates = [
+        (price, previous, market_map[price.market_id])
+        for price, previous in pairs
+        if price.market_id in market_map
+    ]
+    if candidates:
+        price, previous, market = max(
+            candidates,
+            key=lambda item: (item[0].price_per_kg, item[0].observed_at, item[0].id),
+        )
+        return {
+            "crop_name": price.crop_name,
+            "market_name": market.name,
+            "price_per_kg": price.price_per_kg,
+            "observed_at": price.observed_at,
+            "is_stale": price_out(price, previous, market.name).is_stale,
+        }
+
+    return _best_nearby_government_price(db, crop_names)
+
+
+def _best_nearby_government_price(db: Session, crop_names: list[str]):
+    nearby_markets = db.query(Market).filter(Market.distance_km <= 100).all()
+    if not nearby_markets:
+        return None
+
+    normalized_crops = [name.strip().lower() for name in crop_names if name.strip()]
+    if normalized_crops:
+        prices = []
+        for crop_name in normalized_crops:
+            latest_date = (
+                db.query(func.max(MandiPrice.arrival_date))
+                .filter(func.lower(func.trim(MandiPrice.commodity)) == crop_name)
+                .scalar()
+            )
+            if latest_date:
+                prices.extend(
+                    db.query(MandiPrice)
+                    .filter(
+                        func.lower(func.trim(MandiPrice.commodity)) == crop_name,
+                        MandiPrice.arrival_date == latest_date,
+                        MandiPrice.modal_price.is_not(None),
+                    )
+                    .all()
+                )
+    else:
+        latest_date = db.query(func.max(MandiPrice.arrival_date)).scalar()
+        prices = (
+            db.query(MandiPrice)
+            .filter(
+                MandiPrice.arrival_date == latest_date,
+                MandiPrice.modal_price.is_not(None),
+            )
+            .all()
+            if latest_date
+            else []
+        )
+
+    def normalize(value: str) -> str:
+        return "".join(character for character in value.casefold() if character.isalnum())
+
+    matches = []
+    for price in prices:
+        market_name = normalize(price.market)
+        district = normalize(price.district)
+        state = normalize(price.state)
+        matching_markets = [
+            market
+            for market in nearby_markets
+            if normalize(market.district) == district
+            and normalize(market.state) == state
+            and (
+                normalize(market.name) == market_name
+                or normalize(market.name) in market_name
+                or market_name in normalize(market.name)
+            )
+        ]
+        if len(matching_markets) == 1:
+            matches.append((price, matching_markets[0]))
+
+    if not matches:
+        return None
+
+    price, market = max(
+        matches,
+        key=lambda item: (item[0].modal_price, item[0].arrival_date, item[0].id),
+    )
+    return {
+        "crop_name": price.commodity,
+        "market_name": market.name,
+        "price_per_kg": round(price.modal_price / 100, 2),
+        "observed_at": price.arrival_date.isoformat(),
+        "is_stale": False,
+    }
+
+
 @router.get("/dashboard")
 def dashboard(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     crops = _user_crops(db, user)
+    bookings = _user_bookings(db, user)
+    active_bookings = [booking for booking in bookings if booking.status in ACTIVE_STATUSES]
     markets = db.query(Market).order_by(Market.distance_km.asc()).all()
     markets_out = [
         {
@@ -78,6 +262,7 @@ def dashboard(
 
     crop_names = sorted({crop.crop_name for crop in crops})
     prices = _price_list(db, crop_names, limit=8)
+    best_nearby_price = _best_nearby_price(db, crop_names)
     trucks = (
         db.query(Truck)
         .filter(Truck.status == "available")
@@ -85,8 +270,6 @@ def dashboard(
         .limit(8)
         .all()
     )
-    bookings = _user_bookings(db, user)
-    active_bookings = [booking for booking in bookings if booking.status in ACTIVE_STATUSES]
     notifications = (
         db.query(Notification)
         .filter(Notification.user_id == user.id)
@@ -94,21 +277,6 @@ def dashboard(
         .limit(10)
         .all()
     )
-
-    top_crop = max(crops, key=lambda crop: crop.quantity_kg, default=None)
-    comparison = None
-    estimated_profit = None
-    best_market = None
-    if top_crop:
-        comparison = build_comparison(db, top_crop.crop_name, top_crop.quantity_kg, top_crop.cost_per_kg)
-        if comparison.options:
-            best = comparison.options[0]
-            best_market = best.market_name
-            estimated_profit = (
-                best.breakdown.estimated_profit
-                if best.breakdown.estimated_profit is not None
-                else best.breakdown.net_proceeds
-            )
 
     total_stock_kg = sum(
         crop.quantity_kg for crop in crops if crop.status in STOCK_STATUSES
@@ -121,24 +289,20 @@ def dashboard(
             "crop_count": len(crops),
             "nearby_markets": nearby_markets,
             "available_trucks": db.query(Truck).filter(Truck.status == "available").count(),
-            "estimated_profit": round(estimated_profit, 2) if estimated_profit is not None else None,
-            "profit_crop": top_crop.crop_name if top_crop else None,
-            "profit_quantity_kg": top_crop.quantity_kg if top_crop else None,
-            "best_market": best_market,
+            "best_price": best_nearby_price,
             "active_bookings": len(active_bookings),
             "unread_notifications": len([item for item in notifications if not item.is_read]),
         },
         "crops": [CropOut.model_validate(crop) for crop in crops],
         "markets": markets_out,
-        "comparison": comparison,
         "prices": prices,
+        "revenue_history": _revenue_history(bookings),
         "trucks": [
             truck_out(truck, user.role == "admin" or truck.operator_id == user.id)
             for truck in trucks
         ],
         "bookings": [booking_out(booking, user) for booking in active_bookings[:5]],
         "notifications": [NotificationOut.model_validate(item) for item in notifications],
-        "assumptions": comparison.assumptions if comparison else [],
     }
 
 

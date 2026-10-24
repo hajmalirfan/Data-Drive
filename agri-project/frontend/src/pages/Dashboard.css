@@ -72,6 +72,18 @@
 .dbm-stock-card, .dbm-map-card { min-width: 0; }
 .dbm-stock-card .ui-card-body, .dbm-map-card .ui-card-body { padding-top: 10px; }
 
+.dbm-revenue-card { overflow: hidden; }
+.dbm-revenue-total { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.dbm-revenue-total small { color: #87958a; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+.dbm-revenue-total strong { color: #1a3123; font-size: 19px; letter-spacing: -.4px; }
+.dbm-revenue-chart { width: 100%; min-height: 190px; }
+.dbm-revenue-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.dbm-revenue-gridline { stroke: #edf2ea; stroke-width: 1; }
+.dbm-revenue-line { fill: none; stroke: #2e9654; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.dbm-revenue-point { fill: #fff; stroke: #2e9654; stroke-width: 3; }
+.dbm-revenue-label { fill: #87958a; font-size: 11px; }
+.dbm-revenue-empty { min-height: 180px; }
+
 .dbm-crop-cell { display: flex; align-items: center; gap: 9px; }
 .dbm-crop-icon {
   width: 29px;
@@ -356,8 +368,6 @@
   .dbm-stock-map { grid-template-columns: minmax(0, 1fr); }
   .dbm-map { height: 250px; }
   .dbm-bottom { grid-template-columns: minmax(0, 1fr); }
-  .dbm-compare-body { grid-template-columns: minmax(0, 1fr); }
-  .dbm-compare-summary { border-right: 0; border-bottom: 1px solid #edf1e9; }
 }
 @media (max-width: 640px) {
   .dbm-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -366,11 +376,6 @@
   /* Two per row: stack icon over text and pin the arrow so labels don't wrap. */
   .dbm-kpi { position: relative; flex-direction: column; align-items: flex-start; gap: 8px; }
   .dbm-kpi-go { position: absolute; top: 12px; right: 12px; }
-  .dbm-compare-head { padding: 15px 16px 11px; }
-  .dbm-compare-controls { width: 100%; }
-  .dbm-compare-controls .ui-field { flex: 1 1 130px; width: auto; }
-  .dbm-compare-summary { padding: 16px; }
-  .dbm-compare-table { padding: 10px; }
   .dbm-map { height: 220px; }
   .dbm-insight { align-items: flex-start; flex-wrap: wrap; }
   .dbm-insight .ui-btn { width: 100%; }
