@@ -11,7 +11,7 @@ import DriverDashboard from './DriverDashboard'
 import AdminDashboard from './AdminDashboard'
 import './Dashboard.css'
 import { useLanguage } from '../context/LanguageContext'
-import { formatIndiaDate, formatIndiaDateTime } from '../utils/dateTime'
+import { formatIndiaDate } from '../utils/dateTime'
 
 const inr = (value) =>
   value === null || value === undefined
@@ -23,16 +23,6 @@ const kg = (value) =>
     : `${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 1 })} kg`
 const shortDate = (value) =>
   value ? formatIndiaDate(value, { day: 'numeric', month: 'short' }) : '—'
-const shortDateTime = (value) =>
-  value
-    ? formatIndiaDateTime(value, {
-        day: 'numeric',
-        month: 'short',
-        hour: 'numeric',
-        minute: '2-digit',
-      })
-    : '—'
-
 const STATUS_STYLES = {
   available: 'green',
   sold: 'blue',
@@ -45,27 +35,6 @@ const STATUS_STYLES = {
 
 function statusTone(status) {
   return STATUS_STYLES[(status || '').toLowerCase()] || 'grey'
-}
-
-function Trend({ value }) {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) {
-    return <span className="ui-trend-flat">—</span>
-  }
-  if (Number(value) > 0.05) {
-    return (
-      <span className="ui-trend-up">
-        <Icon name="arrowUp" size={12} /> {Number(value).toFixed(1)}%
-      </span>
-    )
-  }
-  if (Number(value) < -0.05) {
-    return (
-      <span className="ui-trend-down">
-        <Icon name="arrowDown" size={12} /> {Math.abs(Number(value)).toFixed(1)}%
-      </span>
-    )
-  }
-  return <span className="ui-trend-flat">0.0%</span>
 }
 
 function RevenueChart({ history }) {
@@ -236,7 +205,6 @@ function FarmerDashboard() {
   const stats = data?.stats || {}
   const crops = data?.crops || []
   const markets = data?.markets || []
-  const prices = data?.prices || []
   const trucks = data?.trucks || []
   const revenueHistory = data?.revenue_history || []
   const bestPrice = stats.best_price
@@ -401,48 +369,8 @@ function FarmerDashboard() {
         </div>
       </section>
 
-      <RevenueChart history={revenueHistory} />
-
       <section className="dbm-bottom">
-        <div className="ui-card">
-          <div className="ui-card-head">
-            <div>
-              <p>{t('dash.latestPricesSub')}</p>
-            </div>
-            <Link to="/market-prices" className="ui-link">{t('dash.allPrices')}</Link>
-          </div>
-          <div className="ui-card-body">
-            {prices.length === 0 ? (
-              <div className="ui-empty">
-                <span className="ui-empty-icon"><Icon name="prices" size={21} /></span>
-                <strong>{t('dash.noPrices')}</strong>
-                <p>{t('dash.noPricesSub')}</p>
-              </div>
-            ) : (
-              <div className="dbm-price-list">
-                {prices.slice(0, 5).map((price) => (
-                  <div key={price.id} className="dbm-price-row">
-                    <span className="dbm-price-icon"><Icon name="leaf" size={14} /></span>
-                    <span className="dbm-price-crop">
-                      <strong>{price.crop_name}</strong>
-                      <small>{price.market_name}</small>
-                      {price.source === 'Agmarknet' && <small>Agmarknet · Government data</small>}
-                    </span>
-                    <span className="dbm-price-value">
-                      <strong>₹{Number(price.price_per_kg).toFixed(1)}</strong>
-                      <small>{t('common.perKg')}</small>
-                    </span>
-                    <span className="dbm-price-trend">
-                      <Trend value={price.trend_pct} />
-                      <small>{shortDateTime(price.observed_at)}</small>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
+        <RevenueChart history={revenueHistory} />
         <div className="ui-card">
           <div className="ui-card-body">
             {trucks.length === 0 ? (
