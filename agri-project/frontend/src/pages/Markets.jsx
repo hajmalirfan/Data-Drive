@@ -1,305 +1,367 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import Icon from '../components/Icons'
-import { getMarkets, getPriceCrops, getPrices } from '../services/operationsService'
+import { getCrops } from '../services/operationsService'
+import { findMarkets, getFinderCommodities, getFinderRoute } from '../services/mandiService'
+import { formatIndiaDate } from '../utils/dateTime'
 import './Markets.css'
 import { useLanguage } from '../context/LanguageContext'
-import { formatIndiaDateTime } from '../utils/dateTime'
 
-const inr = (value) =>
-  value === null || value === undefined ? '—' : `₹${Number(value).toFixed(2)}`
-const observed = (value) =>
-  value
-    ? formatIndiaDateTime(value, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
-    : '—'
+const MarketFinderMap = lazy(() => import('../components/MarketFinderMap'))
 
-function MarketsMap({ markets, priceByMarket, selectedId, onSelect }) {
-  const { t } = useLanguage()
-  const points = useMemo(() => {
-    if (!markets.length) return []
-    const lats = markets.map((market) => Number(market.latitude) || 0)
-    const lngs = markets.map((market) => Number(market.longitude) || 0)
-    const minLat = Math.min(...lats)
-    const maxLat = Math.max(...lats)
-    const minLng = Math.min(...lngs)
-    const maxLng = Math.max(...lngs)
-    const latSpan = maxLat - minLat || 1
-    const lngSpan = maxLng - minLng || 1
-    return markets.map((market) => ({
-      ...market,
-      x: 13 + ((Number(market.longitude) - minLng) / lngSpan) * 74,
-      y: 84 - ((Number(market.latitude) - minLat) / latSpan) * 66,
-    }))
-  }, [markets])
+const rupees = (value, digits = 0) =>
+  value === null || value === undefined
+    ? '—'
+    : `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: digits, minimumFractionDigits: digits })}`
+const duration = (minutes) => {
+  const m = Math.round(minutes)
+  return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`
+}
 
-  return (
-    <div className="mk-map">
-      <span className="mk-road mk-road-a" />
-      <span className="mk-road mk-road-b" />
-      <span className="mk-river" />
-      {points.map((market) => {
-        const price = priceByMarket[market.id]
-        return (
-          <button
-            type="button"
-            key={market.id}
-            className={`mk-pin ${selectedId === market.id ? 'selected' : ''}`}
-            style={{ left: `${market.x}%`, top: `${market.y}%` }}
-            onClick={() => onSelect(market.id)}
-            title={`${market.name} · ${market.distance_km} km`}
-          >
-            <span className="mk-pin-dot"><Icon name="markets" size={13} /></span>
-            <span className="mk-pin-card">
-              <strong>{market.name}</strong>
-              <small>{Number(market.distance_km).toFixed(0)} km · {price ? `${inr(price.price_per_kg)}/kg` : t('common.noPrice')}</small>
-            </span>
-          </button>
-        )
-      })}
-      <span className="mk-map-you">
-        <span className="mk-you-pulse" />
-        <span className="mk-you-dot" />
-      </span>
-      <span className="mk-map-label">
-          <Icon name="info" size={12} /> {t('markets.tapPin')}
-      </span>
-    </div>
-  )
+const PICKS = [
+  { id: 'best_profit', icon: 'sparkles', titleKey: 'finder.bestProfit', tone: 'gold' },
+  { id: 'best_price', icon: 'prices', titleKey: 'finder.bestPrice', tone: 'green' },
+  { id: 'nearest', icon: 'route', titleKey: 'finder.nearest', tone: 'blue' },
+  { id: 'quickest', icon: 'clock', titleKey: 'finder.quickest', tone: 'purple' },
+]
+const SORTS = {
+  net: (a, b) => b.net - a.net,
+  price: (a, b) => b.modal_price - a.modal_price,
+  distance: (a, b) => a.road_km - b.road_km,
+  time: (a, b) => a.drive_minutes - b.drive_minutes,
 }
 
 export default function Markets() {
-  const { t, statusLabel, roleLabel } = useLanguage()
-  const [params] = useSearchParams()
-  const [markets, setMarkets] = useState([])
-  const [cropOptions, setCropOptions] = useState([])
-  const [selectedCrop, setSelectedCrop] = useState('')
-  const [prices, setPrices] = useState([])
-  const [query, setQuery] = useState(params.get('q') || '')
-  const [sort, setSort] = useState('distance')
-  const [selectedId, setSelectedId] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [priceLoading, setPriceLoading] = useState(false)
+  const { t } = useLanguage()
+  const [commodities, setCommodities] = useState([])
+  const [crops, setCrops] = useState([])
+  const [form, setForm] = useState({ commodity: '', quantity: '', cropId: '', costPerKg: '', place: '' })
+  const [gps, setGps] = useState(null) // {lat, lng, label}
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [locating, setLocating] = useState(false)
   const [error, setError] = useState('')
+  const [selectedKey, setSelectedKey] = useState(null)
+  const [route, setRoute] = useState(null)
+  const [sort, setSort] = useState('net')
 
-  useEffect(() => {
-    setQuery(params.get('q') || '')
-    Promise.all([getMarkets(), getPriceCrops()])
-      .then(([marketRows, crops]) => {
-        setMarkets(marketRows)
-        setCropOptions(crops)
-        if (crops.length) setSelectedCrop((current) => current || crops[0])
-        setSelectedId(marketRows[0]?.id || null)
+  const search = (overrides = {}) => {
+    const next = { ...form, ...overrides.form }
+    const point = overrides.gps !== undefined ? overrides.gps : gps
+    if (!next.commodity || !(Number(next.quantity) > 0)) {
+      setError(t('finder.errInput'))
+      return
+    }
+    setLoading(true)
+    setError('')
+    setRoute(null)
+    findMarkets({
+      commodity: next.commodity,
+      quantity_kg: Number(next.quantity),
+      crop_id: next.cropId || undefined,
+      cost_per_kg: next.costPerKg !== '' ? Number(next.costPerKg) : undefined,
+      lat: point?.lat,
+      lng: point?.lng,
+      place: point ? point.label : next.place.trim() || undefined,
+    })
+      .then((result) => {
+        setData(result)
+        setSelectedKey(result.picks?.best_profit || result.options[0]?.key || null)
       })
-      .catch((err) => setError(err.response?.data?.detail || t('markets.loadError')))
+      .catch((err) => setError(err.response?.data?.detail || t('finder.errLoad')))
       .finally(() => setLoading(false))
-  }, [params])
+  }
 
+  // Start from the farmer's own crop when it has government prices.
   useEffect(() => {
-    if (!selectedCrop) return
-    setPriceLoading(true)
-    getPrices({ crop_name: selectedCrop, limit: 200 })
-      .then(setPrices)
-      .catch(() => setPrices([]))
-      .finally(() => setPriceLoading(false))
-  }, [selectedCrop])
+    Promise.all([getFinderCommodities(), getCrops().catch(() => [])]).then(([list, myCrops]) => {
+      setCommodities(list.commodities)
+      const stock = (myCrops || []).filter((c) => ['available', 'reserved', 'partially_sold'].includes(c.status))
+      setCrops(stock)
+      const names = new Map(list.commodities.map((name) => [name.toLowerCase(), name]))
+      const crop = stock.find((c) => names.has(c.crop_name.toLowerCase()))
+      const initial = crop
+        ? { commodity: names.get(crop.crop_name.toLowerCase()), quantity: String(crop.quantity_kg), cropId: String(crop.id), costPerKg: crop.cost_per_kg ?? '' }
+        : { commodity: list.commodities[0] || '', quantity: '1000' }
+      setForm((prev) => ({ ...prev, ...initial }))
+      if (initial.commodity) search({ form: initial })
+    }).catch(() => setError(t('finder.errLoad')))
+  }, []) // eslint-disable-line
 
-  const priceByMarket = useMemo(() => {
-    const mapping = {}
-    prices.forEach((price) => {
-      if (!mapping[price.market_id]) mapping[price.market_id] = price
-    })
-    return mapping
-  }, [prices])
+  // Draw the real road route to the selected market.
+  useEffect(() => {
+    const target = data?.options.find((o) => o.key === selectedKey)
+    if (!target) return undefined
+    let cancelled = false
+    setRoute(null)
+    getFinderRoute({ o_lat: data.origin.lat, o_lng: data.origin.lng, d_lat: target.lat, d_lng: target.lng })
+      .then((r) => { if (!cancelled) setRoute(r.path) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [selectedKey, data])
 
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    const list = markets.filter((market) => {
-      if (!needle) return true
-      return [market.name, market.district, market.state]
-        .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(needle))
-    })
-    return [...list].sort((a, b) => {
-      if (sort === 'distance') return a.distance_km - b.distance_km
-      if (sort === 'eta') return a.eta_minutes - b.eta_minutes
-      if (sort === 'price') {
-        return (priceByMarket[b.id]?.price_per_kg || 0) - (priceByMarket[a.id]?.price_per_kg || 0)
-      }
-      return a.name.localeCompare(b.name)
-    })
-  }, [markets, query, sort, priceByMarket])
+  const useMyLocation = () => {
+    if (!navigator.geolocation) { setError(t('finder.errNoGps')); return }
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const point = { lat: pos.coords.latitude, lng: pos.coords.longitude, label: t('finder.myLocation') }
+        setGps(point)
+        setLocating(false)
+        search({ gps: point })
+      },
+      () => { setLocating(false); setError(t('finder.errGpsDenied')) },
+      { enableHighAccuracy: true, timeout: 15000 },
+    )
+  }
 
-  const nearest = visible.length ? [...visible].sort((a, b) => a.distance_km - b.distance_km)[0] : null
-  const bestPrice = visible.length
-    ? visible
-        .map((market) => ({ market, price: priceByMarket[market.id] }))
-        .filter((item) => item.price)
-        .sort((a, b) => b.price.price_per_kg - a.price.price_per_kg)[0]
-    : null
+  const pickOnMap = (lat, lng) => {
+    const point = { lat, lng, label: t('finder.pinnedPoint') }
+    setGps(point)
+    search({ gps: point })
+  }
+
+  const chooseCrop = (cropId) => {
+    const crop = crops.find((c) => String(c.id) === cropId)
+    const match = crop && commodities.find((name) => name.toLowerCase() === crop.crop_name.toLowerCase())
+    setForm((prev) => ({
+      ...prev,
+      cropId,
+      ...(crop ? { quantity: String(crop.quantity_kg), costPerKg: crop.cost_per_kg ?? '' } : {}),
+      ...(match ? { commodity: match } : {}),
+    }))
+  }
+
+  const options = useMemo(() => (data ? [...data.options].sort(SORTS[sort]) : []), [data, sort])
+  const byKey = useMemo(() => Object.fromEntries((data?.options || []).map((o) => [o.key, o])), [data])
+  const selected = byKey[selectedKey]
 
   return (
     <div className="ui-page markets-page">
       <div className="ui-toolbar">
         <div>
-          <h2>{t('markets.title')}</h2>
-          <p>{t('markets.subtitle')}</p>
+          <h2>{t('finder.title')}</h2>
+          <p>{t('finder.subtitle')}</p>
         </div>
         <div className="ui-toolbar-actions">
-          <label className="ui-field mk-crop-select">
-            <span className="ui-label">{t('markets.pricedCrop')}</span>
-            <select className="ui-select" value={selectedCrop} onChange={(event) => setSelectedCrop(event.target.value)}>
-              {cropOptions.length === 0 && <option value="">{t('markets.noCropPrices')}</option>}
-              {cropOptions.map((crop) => <option key={crop} value={crop}>{crop}</option>)}
-            </select>
-          </label>
+          <Link to="/market-prices" className="ui-btn ui-btn-outline"><Icon name="prices" size={14} />{t('finder.allPrices')}</Link>
         </div>
       </div>
+
+      <form className="ui-card mf-controls" onSubmit={(e) => { e.preventDefault(); setGps(null); search({ gps: null }) }}>
+        {crops.length > 0 && (
+          <label className="ui-field">
+            <span className="ui-label">{t('finder.myCrop')}</span>
+            <select className="ui-select" value={form.cropId} onChange={(e) => chooseCrop(e.target.value)}>
+              <option value="">{t('finder.noCrop')}</option>
+              {crops.map((c) => <option key={c.id} value={c.id}>{c.crop_name}{c.variety ? ` · ${c.variety}` : ''} ({c.quantity_kg} kg)</option>)}
+            </select>
+          </label>
+        )}
+        <label className="ui-field">
+          <span className="ui-label">{t('common.crop')}</span>
+          <select className="ui-select" value={form.commodity} onChange={(e) => setForm((p) => ({ ...p, commodity: e.target.value }))}>
+            {commodities.length === 0 && <option value="">{t('finder.noPrices')}</option>}
+            {commodities.map((name) => <option key={name} value={name}>{name}</option>)}
+          </select>
+        </label>
+        <label className="ui-field mf-qty">
+          <span className="ui-label">{t('common.quantityKg')}</span>
+          <input className="ui-input" type="number" min="1" value={form.quantity} onChange={(e) => setForm((p) => ({ ...p, quantity: e.target.value }))} />
+        </label>
+        <label className="ui-field mf-qty">
+          <span className="ui-label">{t('finder.costPerKg')}</span>
+          <input className="ui-input" type="number" min="0" step="0.01" placeholder={t('finder.optional')} value={form.costPerKg} onChange={(e) => setForm((p) => ({ ...p, costPerKg: e.target.value }))} />
+        </label>
+        <label className="ui-field mf-place">
+          <span className="ui-label">{t('finder.pickupFrom')}</span>
+          <input className="ui-input" placeholder={t('finder.placePlaceholder')} value={form.place} onChange={(e) => setForm((p) => ({ ...p, place: e.target.value }))} />
+        </label>
+        <div className="mf-actions">
+          <button type="button" className="ui-btn ui-btn-outline" onClick={useMyLocation} disabled={locating || loading}>
+            <Icon name="tracking" size={14} />{locating ? t('finder.locating') : t('finder.myLocation')}
+          </button>
+          <button type="submit" className="ui-btn ui-btn-primary" disabled={loading}>
+            <Icon name="search" size={14} />{loading ? t('finder.calculating') : t('finder.find')}
+          </button>
+        </div>
+      </form>
 
       {error && <div className="ui-alert ui-alert-error">{error}</div>}
 
-      <div className="mk-stats">
-        <div className="mk-stat">
-          <span><Icon name="markets" size={17} /></span>
-          <div><small>{t('common.markets')}</small><strong>{visible.length}</strong></div>
+      {data && (
+        <div className="mf-origin-note">
+          <Icon name="markets" size={13} />
+          <span>
+            {t('finder.from')} <b>{data.origin.label}</b> · {data.commodity} · {Number(data.quantity_kg).toLocaleString('en-IN')} kg ·{' '}
+            {t('finder.pricesOf', [formatIndiaDate(`${data.arrival_date}T00:00:00+05:30`, { day: 'numeric', month: 'short', year: 'numeric' })])}
+            {' · '}{t('finder.tapMap')}
+          </span>
         </div>
-        <div className="mk-stat">
-          <span><Icon name="route" size={17} /></span>
-          <div><small>{t('markets.nearest')}</small><strong>{nearest ? `${nearest.name} · ${Number(nearest.distance_km).toFixed(0)} km` : '—'}</strong></div>
+      )}
+      {(data?.markets_locating > 0 || data?.routes_pending > 0) && (
+        <div className="ui-alert ui-alert-info">
+          {data.markets_locating > 0
+            ? t('finder.stillLocating', [data.markets_locating])
+            : t('finder.stillRouting', [data.routes_pending])}{' '}
+          <button type="button" className="mf-linkbtn" onClick={() => search()}>{t('common.refresh')}</button>
         </div>
-        <div className="mk-stat">
-          <span><Icon name="clock" size={17} /></span>
-          <div><small>{t('markets.quickest')}</small><strong>{nearest ? `${nearest.eta_minutes} min` : '—'}</strong></div>
-        </div>
-        <div className="mk-stat">
-          <span><Icon name="prices" size={17} /></span>
-          <div>
-            <small>Best {selectedCrop || 'crop'} price</small>
-            <strong>{bestPrice ? `${inr(bestPrice.price.price_per_kg)} · ${bestPrice.market.name}` : '—'}</strong>
-          </div>
-        </div>
-      </div>
+      )}
 
-      <div className="mk-layout">
-        <div className="ui-card mk-map-card">
-          <div className="ui-card-head">
-            <div>
-              <h3><Icon name="tracking" size={16} />{t('markets.mapTitle')}</h3>
-              <p>{priceLoading ? t('markets.updating') : t('markets.showingPrices', [selectedCrop || t('common.crop')])}</p>
-            </div>
-            <Link to="/market-prices" className="ui-link">{t('markets.priceBoard')}</Link>
-          </div>
-          <div className="ui-card-body">
-            {loading ? (
-              <div className="ui-loading"><span className="ui-spinner" />{t('markets.loading')}</div>
-            ) : (
-              <MarketsMap
-                markets={visible}
-                priceByMarket={priceByMarket}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
+      {data && data.options.length > 0 && (
+        <div className="mf-picks">
+          {PICKS.map((pick) => {
+            const o = byKey[data.picks[pick.id]]
+            if (!o) return null
+            return (
+              <button
+                key={pick.id}
+                type="button"
+                className={`mf-pick ${pick.tone} ${selectedKey === o.key ? 'active' : ''}`}
+                onClick={() => setSelectedKey(o.key)}
+              >
+                <span className="mf-pick-head">
+                  <span className="mf-pick-icon"><Icon name={pick.icon} size={15} /></span>
+                  <small>{t(pick.titleKey)}</small>
+                  {pick.id === 'best_profit' && <em>{t('finder.recommended')}</em>}
+                </span>
+                <strong>{o.market}</strong>
+                <span className="mf-pick-sub">{o.district}</span>
+                <span className="mf-pick-figures">
+                  <b>{rupees(o.net)}</b> {t('finder.inHand')}
+                </span>
+                <span className="mf-pick-meta">
+                  {o.road_km} km · {duration(o.drive_minutes)} · {rupees(o.price_per_kg, 2)}/kg
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      <div className="mf-layout">
+        <div className="ui-card mf-map-card">
+          {data ? (
+            <Suspense fallback={<div className="mf-map mf-map-loading"><span className="ui-spinner" /></div>}>
+              <MarketFinderMap
+                origin={data.origin}
+                markets={data.map_markets}
+                options={data.options}
+                picks={data.picks}
+                selectedKey={selectedKey}
+                onSelect={setSelectedKey}
+                route={route}
+                onPickOrigin={pickOnMap}
               />
-            )}
+            </Suspense>
+          ) : (
+            <div className="mf-map mf-map-loading">{loading ? <><span className="ui-spinner" />{t('finder.calculating')}</> : t('finder.mapHint')}</div>
+          )}
+          <div className="mf-legend">
+            <span><i className="gold" />{t('finder.bestProfit')}</span>
+            <span><i className="blue" />{t('finder.selected')}</span>
+            <span><i className="green" />{t('finder.compared')}</span>
+            <span><i className="grey" />{t('finder.otherMarkets')}</span>
           </div>
         </div>
 
-        <div className="ui-card mk-list-card">
-          <div className="mk-list-head">
-            <div className="ui-filters">
-              <input
-                className="ui-input mk-search"
-                placeholder={t('markets.searchPlaceholder')}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-              <select className="ui-select" value={sort} onChange={(event) => setSort(event.target.value)}>
-                <option value="distance">{t('markets.sortDistance')}</option>
-                <option value="eta">{t('markets.sortEta')}</option>
-                <option value="price">{t('prices.highest')}</option>
-                <option value="name">{t('markets.sortName')}</option>
-              </select>
-            </div>
+        <div className="ui-card mf-list-card">
+          <div className="mf-list-head">
+            <strong>{t('finder.compareTitle', [options.length])}</strong>
+            <select className="ui-select" value={sort} onChange={(e) => setSort(e.target.value)} aria-label={t('mandi.sortBy')}>
+              <option value="net">{t('finder.sortNet')}</option>
+              <option value="price">{t('finder.sortPrice')}</option>
+              <option value="distance">{t('finder.sortDistance')}</option>
+              <option value="time">{t('finder.sortTime')}</option>
+            </select>
           </div>
-          <div className="mk-list">
-            {loading ? (
-              <div className="ui-loading"><span className="ui-spinner" />{t('common.loading')}</div>
-            ) : visible.length === 0 ? (
+          <div className={`mf-list ${loading && data ? 'is-refreshing' : ''}`}>
+            {!data && !loading && <p className="mf-empty">{t('finder.mapHint')}</p>}
+            {data && options.length === 0 && (
               <div className="ui-empty">
                 <span className="ui-empty-icon"><Icon name="markets" size={21} /></span>
-                <strong>{t('markets.noMatch')}</strong>
-                <p>{t('markets.noMatchSub')}</p>
+                <strong>{t('finder.noneTitle')}</strong>
+                <p>{t('finder.noneSub')}</p>
               </div>
-            ) : (
-              visible.map((market) => {
-                const price = priceByMarket[market.id]
-                return (
-                  <div
-                    key={market.id}
-                    role="button"
-                    tabIndex={0}
-                    className={`mk-item ${selectedId === market.id ? 'selected' : ''}`}
-                    onClick={() => setSelectedId(market.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
-                        setSelectedId(market.id)
-                      }
-                    }}
-                  >
-                    <span className="mk-item-icon"><Icon name="markets" size={17} /></span>
-                    <span className="mk-item-main">
-                      <strong>{market.name}</strong>
-                      <small>{market.district}, {market.state}</small>
-                      <span className="mk-item-meta">
-                        <span><Icon name="route" size={11} /> {Number(market.distance_km).toFixed(0)} km</span>
-                        <span><Icon name="clock" size={11} /> {market.eta_minutes} min</span>
-                      </span>
-                    </span>
-                    <span className="mk-item-price">
-                      {priceLoading ? (
-                        <small>...</small>
-                      ) : price ? (
-                        <>
-                          <strong>{inr(price.price_per_kg)}</strong>
-                          <small>{selectedCrop} / kg</small>
-                          <span className={`ui-badge ui-badge-${price.is_stale ? 'amber' : 'green'}`}>
-                            {price.is_stale ? t('common.stale') : t('common.current')}
-                          </span>
-                        </>
-                      ) : (
-                        <small>{t('common.noPrice')}</small>
-                      )}
-                    </span>
-                    <Link
-                      to={`/market-prices?market=${market.id}${selectedCrop ? `&crop=${encodeURIComponent(selectedCrop)}` : ''}`}
-                      className="mk-item-link"
-                      onClick={(event) => event.stopPropagation()}
-                      title={t('markets.seePriceRecords')}
-                    >
-                      <Icon name="arrowRight" size={14} />
-                    </Link>
-                  </div>
-                )
-              })
             )}
-          </div>
-          {selectedId && visible.find((market) => market.id === selectedId) && (
-            <div className="mk-selected">
-              <span>
-                <strong>{visible.find((market) => market.id === selectedId).name}</strong>
-                <small>
-                  Latest {selectedCrop || 'crop'} price recorded {priceByMarket[selectedId] ? observed(priceByMarket[selectedId].observed_at) : t('markets.notYet')}
-                </small>
-              </span>
-              <Link
-                to={`/market-prices?market=${selectedId}${selectedCrop ? `&crop=${encodeURIComponent(selectedCrop)}` : ''}`}
-                className="ui-btn ui-btn-soft ui-btn-sm"
+            {options.map((o, index) => (
+              <button
+                key={o.key}
+                type="button"
+                className={`mf-item ${o.key === selectedKey ? 'selected' : ''}`}
+                onClick={() => setSelectedKey(o.key)}
               >
-                View prices
-              </Link>
-            </div>
-          )}
+                <span className="mf-rank">{index + 1}</span>
+                <span className="mf-item-main">
+                  <strong>{o.market}</strong>
+                  <small>{o.district}{o.location_precision === 'district' ? ` · ${t('finder.approxLocation')}` : ''}</small>
+                  <span className="mf-item-meta">
+                    <span><Icon name="route" size={11} /> {o.road_km} km</span>
+                    <span><Icon name="clock" size={11} /> {duration(o.drive_minutes)}</span>
+                    <span><Icon name="prices" size={11} /> {rupees(o.price_per_kg, 2)}/kg</span>
+                  </span>
+                </span>
+                <span className="mf-item-net">
+                  <strong>{rupees(o.net)}</strong>
+                  <small>{t('finder.inHand')}</small>
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+
+      {selected && data && (
+        <div className="ui-card mf-detail">
+          <div className="ui-card-head">
+            <div>
+              <h3><Icon name="scale" size={16} />{selected.market}</h3>
+              <p>
+                {selected.district}, {selected.state} · {selected.variety} · {selected.grade} ·{' '}
+                {t('finder.published', [rupees(selected.min_price), rupees(selected.max_price), rupees(selected.modal_price)])}
+              </p>
+            </div>
+            <Link to="/trucks" className="ui-btn ui-btn-primary ui-btn-sm"><Icon name="truck" size={13} />{t('finder.bookTruck')}</Link>
+          </div>
+          <div className="ui-card-body mf-breakdown">
+            <dl>
+              <div><dt>{t('finder.saleable', [data.assumptions.market_loss_pct])}</dt><dd>{selected.saleable_kg} kg</dd></div>
+              <div><dt>{t('finder.gross', [rupees(selected.price_per_kg, 2)])}</dt><dd>{rupees(selected.gross)}</dd></div>
+              <div className="minus">
+                <dt>
+                  {t('finder.transport', [selected.road_km])}
+                  <small>
+                    {data.transport.source === 'truck'
+                      ? t('finder.truckRate', [data.transport.vehicle_number, rupees(data.transport.base_fare), data.transport.price_per_km])
+                      : t('finder.standardRate', [rupees(data.transport.base_fare), data.transport.price_per_km])}
+                  </small>
+                </dt>
+                <dd>− {rupees(selected.transport)}</dd>
+              </div>
+              <div className="minus"><dt>{t('finder.labour', [data.assumptions.labour_per_kg])}</dt><dd>− {rupees(selected.labour)}</dd></div>
+              <div className="minus"><dt>{t('finder.commission', [data.assumptions.commission_pct])}</dt><dd>− {rupees(selected.commission)}</dd></div>
+              <div className="minus"><dt>{t('finder.packaging', [data.assumptions.packaging_per_kg])}</dt><dd>− {rupees(selected.packaging)}</dd></div>
+              <div className="total"><dt>{t('finder.netInHand')}<small>{rupees(selected.net_per_kg, 2)}/kg</small></dt><dd>{rupees(selected.net)}</dd></div>
+              {selected.profit !== null && (
+                <div className={`total ${selected.profit >= 0 ? 'good' : 'bad'}`}>
+                  <dt>
+                    {t('finder.profit')}
+                    <small>{t('finder.afterProduction', [rupees(selected.production_cost)])}</small>
+                  </dt>
+                  <dd>
+                    {rupees(selected.profit)}
+                    {selected.profit_margin_pct !== null && <small> ({selected.profit_margin_pct}%)</small>}
+                  </dd>
+                </div>
+              )}
+            </dl>
+            <p className="mf-sources">
+              {t('finder.sources')} {data.sources.prices} · {data.sources.locations} · {data.sources.routes}.
+              {selected.location_precision === 'district' && ` ${t('finder.districtNote')}`}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

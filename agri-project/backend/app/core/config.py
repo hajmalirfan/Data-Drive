@@ -39,6 +39,15 @@ class Settings(BaseSettings):
     PACKAGING_COST_PER_KG: float = 0.25
     STALE_PRICE_HOURS: int = 48
 
+    # Government mandi prices (Agmarknet). "dataset" imports CSV files from MANDI_DATASET_DIR
+    # (default: <repo>/dataset); "api" downloads from data.gov.in with DATA_GOV_API_KEY.
+    MANDI_SOURCE: str = "dataset"
+    MANDI_DATASET_DIR: str = ""
+    DATA_GOV_API_KEY: str = ""
+    DATA_GOV_MANDI_RESOURCE: str = "9ef84268-d588-465a-a308-a864a43d0070"
+    MANDI_SYNC_INTERVAL_HOURS: int = 6
+    MANDI_RETENTION_DAYS: int = 30
+
     # Password reset / OTP
     OTP_EXPIRE_MINUTES: int = 10
     OTP_RESEND_SECONDS: int = 60

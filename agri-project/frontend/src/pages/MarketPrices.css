@@ -106,3 +106,41 @@
   .prices-filters { padding: 13px 13px 11px; }
   .prices-filters .ui-field { flex: 1 1 140px; min-width: 0; }
 }
+
+/* Tabs: government mandi prices / manager-recorded prices */
+.prices-tabs { display: flex; gap: 4px; border-bottom: 1px solid #e3eae0; overflow-x: auto; scrollbar-width: none; }
+.prices-tabs::-webkit-scrollbar { display: none; }
+.prices-tabs button {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; height: 38px; padding: 0 12px;
+  border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: none;
+  font: inherit; font-size: 12px; font-weight: 700; color: #7b897f; cursor: pointer; white-space: nowrap;
+}
+.prices-tabs button:hover { color: #1d7c45; }
+.prices-tabs button.active { color: #1b7c46; border-bottom-color: #249153; }
+
+/* Government mandi prices */
+.mandi { display: flex; flex-direction: column; gap: 14px; }
+.mandi-source {
+  display: flex; align-items: flex-start; gap: 7px; padding: 9px 12px; border-radius: 10px;
+  background: #eef7f0; border: 1px solid #d6ebdc; color: #3f5a47; font-size: 11px; line-height: 1.5;
+}
+.mandi-source svg { flex: 0 0 auto; margin-top: 2px; color: #23824b; }
+.mandi-source b { color: #1f6b3e; }
+.prices-stat strong em { font-style: normal; font-size: 10px; font-weight: 600; color: #8d998f; margin-left: 2px; }
+.mandi-search { flex: 1 1 200px; }
+.mandi-table td { vertical-align: top; }
+.mandi-market { display: block; max-width: 260px; }
+.mandi-sub { display: block; margin-top: 2px; font-size: 10px; color: #8d998f; }
+.mandi-refreshing { opacity: 0.55; transition: opacity 0.2s; }
+.mandi-pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding-top: 12px; font-size: 11px; color: #7b897f; }
+.mandi-pager > div { display: flex; gap: 6px; }
+@media (max-width: 640px) {
+  /* Phones: keep market, crop and the modal price visible without sideways scrolling. */
+  .mandi-table th:nth-child(3), .mandi-table td:nth-child(3),
+  .mandi-table th:nth-child(4), .mandi-table td:nth-child(4),
+  .mandi-table th:nth-child(7), .mandi-table td:nth-child(7) { display: none; }
+  .mandi-table { min-width: 0; width: 100%; }
+  .mandi-table th, .mandi-table td { padding: 8px 5px; white-space: normal; overflow-wrap: anywhere; }
+  .mandi-table th { font-size: 8.5px; }
+  .mandi-market { max-width: none; font-size: 11px; }
+}

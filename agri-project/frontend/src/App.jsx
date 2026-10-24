@@ -25,7 +25,12 @@ const NON_ADMIN_ROLES = ['farmer', 'truck_operator', 'market_manager', 'buyer', 
 function ProtectedLayout({ allowedRoles }) {
   const { isAuth, role } = useAuth()
   if (!isAuth) return <Navigate to="/login" replace />
-  if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(role)) {
+  const restricted = allowedRoles && allowedRoles.length > 0
+  // Signed in but the profile (role) is still loading: wait instead of redirecting.
+  if (restricted && !role) {
+    return <div className="ui-loading" style={{ minHeight: '60vh' }}><span className="ui-spinner" /></div>
+  }
+  if (restricted && !allowedRoles.includes(role)) {
     return <Navigate to="/dashboard" replace />
   }
   return (

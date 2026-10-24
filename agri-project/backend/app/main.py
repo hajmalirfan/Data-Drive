@@ -4,9 +4,9 @@ from sqlalchemy import inspect
 
 from app.core.config import settings
 from app.core.database import Base, engine
-from app.core import metrics, security_policy
-from app.models import chat, login_otp, metrics as metrics_model, operations, password_reset, user, user_document  # noqa: F401 - register models
-from app.routers import admin, auth, bookings, chat as chat_router, crops, dashboard, documents, markets, trucks
+from app.core import mandi_sync, metrics, security_policy
+from app.models import chat, geo, login_otp, mandi, metrics as metrics_model, operations, password_reset, user, user_document  # noqa: F401 - register models
+from app.routers import admin, auth, bookings, chat as chat_router, crops, dashboard, documents, finder, mandi as mandi_router, markets, trucks
 
 
 def migrate_schema():
@@ -114,6 +114,7 @@ app.add_middleware(
 
 metrics.install(app)
 security_policy.install(app)
+mandi_sync.install(app)
 
 app.include_router(auth.router)
 app.include_router(admin.router)
@@ -121,6 +122,8 @@ app.include_router(documents.router)
 app.include_router(chat_router.router)
 app.include_router(crops.router)
 app.include_router(markets.router)
+app.include_router(mandi_router.router)
+app.include_router(finder.router)
 app.include_router(trucks.router)
 app.include_router(bookings.router)
 app.include_router(dashboard.router)

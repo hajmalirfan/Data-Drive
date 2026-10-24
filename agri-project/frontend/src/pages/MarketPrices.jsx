@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Icon from '../components/Icons'
 import Modal from '../components/Modal'
+import GovMandiPrices from '../components/GovMandiPrices'
 import {
   createPrice,
   getMarkets,
@@ -49,6 +50,8 @@ export default function MarketPrices() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
+  // Government (Agmarknet) prices first; manager-entered prices on the second tab.
+  const [tab, setTab] = useState(params.get('tab') === 'recorded' ? 'recorded' : 'government')
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const [form, setForm] = useState({
@@ -161,6 +164,14 @@ export default function MarketPrices() {
         </div>
       </div>
 
+      <div className="prices-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={tab === 'government'} className={tab === 'government' ? 'active' : ''} onClick={() => setTab('government')}>
+          <Icon name="shield" size={14} />{t('mandi.tabGovernment')}
+        </button>
+      </div>
+
+      {tab === 'government' ? <GovMandiPrices /> : (
+      <>
       {notice && <div className="ui-alert ui-alert-success">{notice}</div>}
       {error && <div className="ui-alert ui-alert-error">{error}</div>}
 
@@ -262,6 +273,8 @@ export default function MarketPrices() {
           )}
         </div>
       </div>
+      </>
+      )}
 
       {modalOpen && (
         <Modal

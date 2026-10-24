@@ -112,8 +112,22 @@ Menu visibility is a convenience; every rule is also enforced by the backend.
   nearby markets map, market comparison, latest prices, available trucks.
 - **My Crops**: add/edit/close crop listings (crop, variety, quantity, grade,
   harvest date, pickup location, cost per kg, status).
-- **Market Prices**: price board with highest/average price, staleness (older than 48 h).
-- **Find Markets**: market map and list with distance, travel time and latest price.
+- **Market Prices → Government mandi prices** (default tab): official Agmarknet
+  prices (data.gov.in) exactly as published — min, max and modal price per quintal
+  plus ₹/kg, by state, district, market, commodity, variety and grade, with the
+  source and arrival date shown. Loaded from CSV files in `dataset/` (or the
+  data.gov.in API), refreshed automatically, 30 days of history kept.
+- **Market Prices → Recorded by managers**: manager-entered price board with
+  highest/average price and staleness (older than 48 h).
+- **Find Markets (market finder)**: for a crop and quantity, compares government
+  mandi prices across markets after **real road distance** (OSRM) and every cost,
+  from the farmer's GPS position, a typed village/town, a point tapped on the map,
+  or the crop's pickup location. Shows four picks — **Best profit** (most money in
+  hand, recommended), **Best crop price**, **Nearest**, **Quickest trip** — a ranked
+  list, a Leaflet map with the road route, and a full cost breakdown. Transport uses
+  the cheapest truck listed in the app that can carry the load (base fare + ₹/km).
+  Market locations come from OpenStreetMap (district centre, marked approximate,
+  when the exact market is not found or is a same-name place elsewhere).
 - **Market comparison**: net proceeds per market for a crop and quantity (§10.3).
 - **Truck Booking**: browse shared trucks by free capacity and route; book capacity.
 - **My Bookings**: booking list with status tabs, details, cancellation, recorded sale.
@@ -408,6 +422,33 @@ Interactive docs: `/docs` (development only).
 | GET | `/reports/summary` | Reports |
 | GET / PATCH | `/notifications`, `/notifications/{id}/read`, `/notifications/read-all` | Notifications |
 | GET | `/search` | Global search |
+
+### Government mandi prices — `/api/mandi-prices`
+| Method | Path | Who | Purpose |
+|---|---|---|---|
+| GET | `/api/mandi-prices` | Signed in | Prices for the latest date (filters: `state`, `district`, `market`, `commodity`, `q`, `arrival_date`; `sort`; paging) |
+| GET | `/api/mandi-prices/filters` | Signed in | States, districts and commodities for the dropdowns |
+| GET | `/api/mandi-prices/history` | Signed in | Stored daily prices for one market and commodity |
+| GET | `/api/mandi-prices/status` | Signed in | Source, latest date, record count, last load |
+| POST | `/api/mandi-prices/sync` | Admin | Reload now from the configured source |
+
+Source settings: `MANDI_SOURCE` (`dataset` — CSV files in `dataset/` with columns
+`state, district, market, commodity, variety, grade, arrival_date (dd/mm/yyyy),
+min_price, max_price, modal_price`; or `api` — data.gov.in with `DATA_GOV_API_KEY`),
+`MANDI_DATASET_DIR`, `MANDI_SYNC_INTERVAL_HOURS`, `MANDI_RETENTION_DAYS`.
+
+### Market finder — `/api/market-finder`
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/market-finder?commodity=&quantity_kg=` (+ `lat`/`lng`, `place`, `crop_id`, `cost_per_kg`) | Ranked markets with road km, drive time, costs, money in hand, profit, and the four picks |
+| GET | `/api/market-finder/commodities` | Crops with government prices on the latest date |
+| GET | `/api/market-finder/route?o_lat=&o_lng=&d_lat=&d_lng=` | Road path for the map |
+
+Caches: `geocode_cache` (OpenStreetMap lookups) and `route_cache` (OSRM road
+distance/time). Markets are located in the background after each price import
+(1 lookup/second); routing is limited to a shortlist (20 nearest + 12 best-priced)
+with a 20-second budget per search — unfinished routes are cached for the next
+search and never estimated.
 
 ### AI — `/api/chat`
 | Method | Path | Purpose |
