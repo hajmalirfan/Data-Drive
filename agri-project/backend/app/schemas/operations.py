@@ -201,6 +201,22 @@ class BookingLocationUpdate(BaseModel):
     lng: float | None = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
     location: str = Field(default="", max_length=255)
     consent: bool = False
+    accuracy_m: float | None = Field(default=None, ge=0, le=100000, allow_inf_nan=False)
+
+
+class TrackPoint(BaseModel):
+    lat: float
+    lng: float
+    recorded_at: datetime
+
+
+class BookingTrackOut(BaseModel):
+    booking_id: int
+    status: str
+    sharing: bool
+    interval_seconds: int
+    last_reported_at: datetime | None = None
+    points: list[TrackPoint]
 
 
 class BookingOut(BaseModel):

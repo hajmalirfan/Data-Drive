@@ -1,9 +1,11 @@
-import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useLiveShare } from '../context/LiveShareContext'
 import Icon from '../components/Icons'
 const TripMap = lazy(() => import('../components/TripMap'))
 import {
+  getBookingTrack,
   getBookings,
   getMarkets,
   updateBookingLocation,
@@ -51,10 +53,8 @@ export default function Tracking() {
   const [loc, setLoc] = useState({ lat: '', lng: '', location: '', consent: false })
   const [locError, setLocError] = useState('')
   const [showClosed, setShowClosed] = useState(false)
-  const [gpsSharing, setGpsSharing] = useState(false)
-  const gpsWatchId = useRef(null)
-  const gpsRequestInFlight = useRef(false)
-  const lastGpsRequestAt = useRef(0)
+  const [trail, setTrail] = useState({ bookingId: null, points: [] })
+  const live = useLiveShare()
 
   const canShare = isAdmin || isTruckOperator
 
@@ -97,19 +97,23 @@ export default function Tracking() {
     canShare && selected && ['picked_up', 'in_transit'].includes(selected.status)
   )
 
+  const gpsSharing = Boolean(selected && live?.bookingId === selected.id)
+  const sharingOther = Boolean(live?.bookingId && selected && live.bookingId !== selected.id)
+
+  // Live trail: re-read every 5 s so a fix sent every 15 s shows on the map within seconds.
+  const trackable = Boolean(selected && ['picked_up', 'in_transit'].includes(selected.status))
   useEffect(() => {
-    setGpsSharing(false)
-    if (!canLiveShare && gpsWatchId.current !== null) {
-      navigator.geolocation?.clearWatch(gpsWatchId.current)
-      gpsWatchId.current = null
-    }
-    return () => {
-      if (gpsWatchId.current !== null) {
-        navigator.geolocation?.clearWatch(gpsWatchId.current)
-        gpsWatchId.current = null
-      }
-    }
-  }, [selectedId, Boolean(canLiveShare)])
+    setTrail({ bookingId: null, points: [] })
+    if (!trackable) return undefined
+    let cancelled = false
+    const pull = () => getBookingTrack(selectedId)
+      .then((data) => { if (!cancelled) setTrail({ bookingId: selectedId, ...data }) })
+      .catch(() => {})
+    pull()
+    const timer = setInterval(pull, 5000)
+    return () => { cancelled = true; clearInterval(timer) }
+  }, [selectedId, trackable])
+  const selectedTrail = trail.bookingId === selectedId ? trail : null
 
   const advance = async () => {
     if (!selected) return
@@ -172,87 +176,19 @@ export default function Tracking() {
 
   const startGpsSharing = (consentGiven = loc.consent) => {
     setLocError('')
-    if (!selected || !canLiveShare) {
-      setLocError(t('tracking.startAfterTrip'))
-      return
-    }
-    if (!consentGiven) {
-      setLocError(t('tracking.consentRequired'))
-      return
-    }
-    if (!navigator.geolocation) {
-      setLocError(t('tracking.geoUnavailable'))
-      return
-    }
-    if (gpsWatchId.current !== null) return
-
-    gpsWatchId.current = navigator.geolocation.watchPosition(
-      async (position) => {
-        const now = Date.now()
-        if (gpsRequestInFlight.current || now - lastGpsRequestAt.current < 5000) return
-        gpsRequestInFlight.current = true
-        lastGpsRequestAt.current = now
-        const { latitude, longitude } = position.coords
-        try {
-          const updated = await updateBookingLocation(selected.id, {
-            lat: latitude,
-            lng: longitude,
-            location: t('tracking.liveGps'),
-            consent: true,
-          })
-          setBookings((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
-          setLoc((prev) => ({
-            ...prev,
-            lat: latitude.toFixed(6),
-            lng: longitude.toFixed(6),
-            location: t('tracking.liveGps'),
-          }))
-          setLocError('')
-        } catch (err) {
-          setLocError(err.response?.data?.detail || t('tracking.locationError'))
-          if ([400, 401, 403].includes(err.response?.status)) {
-            navigator.geolocation.clearWatch(gpsWatchId.current)
-            gpsWatchId.current = null
-            setGpsSharing(false)
-          }
-        } finally {
-          gpsRequestInFlight.current = false
-        }
-      },
-      (geoError) => {
-        setLocError(
-          geoError.code === geoError.PERMISSION_DENIED
-            ? t('tracking.geoPermissionDenied')
-            : t('tracking.geoError')
-        )
-        if (gpsWatchId.current !== null) {
-          navigator.geolocation.clearWatch(gpsWatchId.current)
-          gpsWatchId.current = null
-        }
-        setGpsSharing(false)
-      },
-      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
-    )
-    setGpsSharing(true)
+    if (!selected || !canLiveShare) { setLocError(t('tracking.startAfterTrip')); return }
+    if (!consentGiven) { setLocError(t('tracking.consentRequired')); return }
+    if (!navigator.geolocation) { setLocError(t('tracking.geoUnavailable')); return }
+    if (sharingOther) { setLocError(t('live.sharingOther', [live.bookingId])); return }
+    live.start(selected.id)
   }
 
   const stopGpsSharing = async () => {
-    if (gpsWatchId.current !== null) {
-      navigator.geolocation?.clearWatch(gpsWatchId.current)
-      gpsWatchId.current = null
-    }
-    setGpsSharing(false)
-    if (!selected || !canLiveShare) return
-
-    setBusy(true)
     setLocError('')
+    setBusy(true)
     try {
-      const updated = await updateBookingLocation(selected.id, {
-        lat: null,
-        lng: null,
-        consent: false,
-      })
-      setBookings((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
+      const updated = await live.stop()
+      if (updated) setBookings((prev) => prev.map((item) => (item.id === updated.id ? updated : item)))
       setLoc((prev) => ({ ...prev, lat: '', lng: '', consent: false }))
     } catch (err) {
       setLocError(err.response?.data?.detail || t('tracking.locationError'))
@@ -263,12 +199,14 @@ export default function Tracking() {
 
   const changeLocationConsent = (consent) => {
     setLoc((prev) => ({ ...prev, consent }))
-    if (consent) {
-      startGpsSharing(true)
-    } else {
-      stopGpsSharing()
-    }
+    if (consent) startGpsSharing(true)
+    else if (gpsSharing) stopGpsSharing()
   }
+
+  const liveErrorKey = {
+    geoPermissionDenied: 'tracking.geoPermissionDenied',
+    geoUnavailable: 'tracking.geoUnavailable',
+  }[live?.stoppedReason]
 
   return (
     <div className="ui-page tracking-page">
@@ -349,7 +287,7 @@ export default function Tracking() {
                   </div>
                   <div className="ui-card-body">
                     <Suspense fallback={<div className="trk-map trk-map-loading">{t('tracking.loading')}</div>}>
-                      <TripMap booking={selected} market={market} />
+                      <TripMap booking={selected} market={market} trail={selectedTrail} />
                     </Suspense>
                   </div>
                 </div>
@@ -427,6 +365,19 @@ export default function Tracking() {
                             <input className="ui-input" value={loc.location} onChange={(event) => setLoc((prev) => ({ ...prev, location: event.target.value }))} placeholder={t('tracking.locationPlaceholder')} />
                           </label>
                         </div>
+                        {gpsSharing && live.lastFix && (
+                          <div className="trk-live-fix">
+                            <span className="live-share-dot" aria-hidden="true" />
+                            {live.lastFix.lat.toFixed(6)}, {live.lastFix.lng.toFixed(6)}
+                            {Number.isFinite(live.lastFix.accuracy) && ` · ±${Math.round(live.lastFix.accuracy)} m`}
+                            {' · '}{t('live.trailPoints', [live.sentCount])}
+                          </div>
+                        )}
+                        {!gpsSharing && live?.stoppedReason && (
+                          <div className="ui-alert ui-alert-error">
+                            {t('live.stopped', [liveErrorKey ? t(liveErrorKey) : live.stoppedReason])}
+                          </div>
+                        )}
                         {locError && <div className="ui-alert ui-alert-error">{locError}</div>}
                         <div className="trk-share-actions">
                           <button type="submit" className="ui-btn ui-btn-outline ui-btn-sm" disabled={busy}>
@@ -436,7 +387,7 @@ export default function Tracking() {
                         <label className="trk-consent">
                           <input
                             type="checkbox"
-                            checked={loc.consent}
+                            checked={loc.consent || gpsSharing}
                             onChange={(event) => changeLocationConsent(event.target.checked)}
                           />
                           <span>{t('tracking.consent')}</span>

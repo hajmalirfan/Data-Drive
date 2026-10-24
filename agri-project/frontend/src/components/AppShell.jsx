@@ -9,6 +9,7 @@ import {
 } from '../services/operationsService'
 import BrandLogo from './BrandLogo'
 import Icon from './Icons'
+import LiveShareBar from './LiveShareBar'
 import LanguageSelector from './LanguageSelector'
 import './AppShell.css'
 import { useLanguage } from '../context/LanguageContext'
@@ -364,7 +365,7 @@ export default function AppShell({ children }) {
           </div>
         </header>
 
-        <main className="sa-content">{children}</main>
+        <main className="sa-content"><LiveShareBar />{children}</main>
 
         <footer className="sa-footer">
           <span>{t('brand')} {t('appTagline')}</span>

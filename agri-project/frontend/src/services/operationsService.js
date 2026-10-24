@@ -35,6 +35,7 @@ export const recordDelivery = (id, payload) =>
   api.patch(`/api/bookings/${id}/delivery`, payload).then((r) => r.data)
 export const updateBookingLocation = (id, payload) =>
   api.patch(`/api/bookings/${id}/location`, payload).then((r) => r.data)
+export const getBookingTrack = (id) => api.get(`/api/bookings/${id}/track`).then((r) => r.data)
 
 // Notifications and search
 export const getNotifications = (params) =>

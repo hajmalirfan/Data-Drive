@@ -1,10 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.operations import Booking, CropStock, Market, Notification, Truck
+from app.models.operations import Booking, BookingLocationPoint, CropStock, Market, Notification, Truck
 from app.models.user import User
 from app.routers.auth import get_current_user, require_farmer
 from app.routers.markets import build_comparison
@@ -14,6 +14,8 @@ from app.schemas.operations import (
     BookingLocationUpdate,
     BookingOut,
     BookingStatusUpdate,
+    BookingTrackOut,
+    TrackPoint,
 )
 
 router = APIRouter(prefix="/api/bookings", tags=["bookings"])
@@ -44,6 +46,17 @@ ALLOWED_TRANSITIONS = {
 
 OPERATOR_STATUSES = {"accepted", "rejected", "assigned", "picked_up", "in_transit", "delivered"}
 FARMER_STATUSES = {"cancelled"}
+
+# The operator's app sends a GPS fix every LIVE_SHARE_SECONDS while sharing.
+LIVE_SHARE_SECONDS = 15
+# Keep the newest fixes only: 960 x 15 s is about 4 hours of trail.
+MAX_TRACK_POINTS = 960
+
+
+def _clear_trail(db: Session, booking: Booking):
+    db.query(BookingLocationPoint).filter(BookingLocationPoint.booking_id == booking.id).delete(
+        synchronize_session=False
+    )
 
 
 def booking_out(booking: Booking, user: User) -> BookingOut:
@@ -291,6 +304,7 @@ def update_booking_status(
         booking.last_lat = None
         booking.last_lng = None
         booking.last_reported_at = None
+        _clear_trail(db, booking)
         if truck:
             _restore_truck_capacity(truck, booking.quantity_kg)
     elif new_status in {"rejected", "cancelled"} and previous in {
@@ -384,13 +398,62 @@ def update_location(
 
     booking.location_consent = data.consent
     if data.consent:
+        now = datetime.utcnow()
         booking.last_lat = data.lat
         booking.last_lng = data.lng
-        booking.last_reported_at = datetime.utcnow()
+        booking.last_reported_at = now
+        db.add(BookingLocationPoint(
+            booking_id=booking.id, lat=data.lat, lng=data.lng, accuracy_m=data.accuracy_m, recorded_at=now,
+        ))
+        db.flush()
+        stale = (
+            db.query(BookingLocationPoint.id)
+            .filter(BookingLocationPoint.booking_id == booking.id)
+            .order_by(BookingLocationPoint.recorded_at.desc(), BookingLocationPoint.id.desc())
+            .offset(MAX_TRACK_POINTS)
+            .all()
+        )
+        if stale:
+            db.query(BookingLocationPoint).filter(
+                BookingLocationPoint.id.in_([row.id for row in stale])
+            ).delete(synchronize_session=False)
     else:
+        # Sharing stopped: the farmer no longer sees the truck or its trail.
         booking.last_lat = None
         booking.last_lng = None
         booking.last_reported_at = None
+        _clear_trail(db, booking)
     db.commit()
     db.refresh(booking)
     return booking_out(booking, user)
+
+
+@router.get("/{booking_id}/track", response_model=BookingTrackOut)
+def booking_track(
+    booking_id: int,
+    since: datetime | None = Query(default=None),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Live trail for the farmer's map: every fix since `since` (or the whole trail)."""
+    booking = _get_booking(db, booking_id, user)
+    sharing = bool(booking.location_consent and booking.status in {"picked_up", "in_transit"})
+    points = []
+    if sharing:
+        query = db.query(BookingLocationPoint).filter(BookingLocationPoint.booking_id == booking.id)
+        if since is not None:
+            if since.tzinfo is not None:
+                since = since.astimezone(timezone.utc).replace(tzinfo=None)
+            query = query.filter(BookingLocationPoint.recorded_at > since)
+        points = [
+            TrackPoint(lat=row.lat, lng=row.lng, recorded_at=row.recorded_at)
+            for row in query.order_by(BookingLocationPoint.recorded_at, BookingLocationPoint.id).all()
+        ]
+    return BookingTrackOut(
+        booking_id=booking.id,
+        status=booking.status,
+        sharing=sharing,
+        interval_seconds=LIVE_SHARE_SECONDS,
+        last_reported_at=booking.last_reported_at if sharing else None,
+        points=points,
+    )

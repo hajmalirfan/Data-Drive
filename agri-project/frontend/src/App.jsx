@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { LanguageProvider } from './context/LanguageContext'
+import { LiveShareProvider } from './context/LiveShareContext'
 import AppShell from './components/AppShell'
 import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
@@ -49,6 +50,7 @@ export default function App() {
   return (
     <LanguageProvider>
       <AuthProvider>
+        <LiveShareProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<RootRedirect />} />
@@ -81,6 +83,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
+        </LiveShareProvider>
       </AuthProvider>
     </LanguageProvider>
   )

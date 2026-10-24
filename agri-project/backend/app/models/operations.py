@@ -132,6 +132,19 @@ class Booking(Base):
     market = relationship("Market")
 
 
+class BookingLocationPoint(Base):
+    """One GPS fix shared by the truck operator during a trip (the farmer's live trail)."""
+
+    __tablename__ = "booking_location_points"
+
+    id = Column(Integer, primary_key=True)
+    booking_id = Column(Integer, ForeignKey("bookings.id", ondelete="CASCADE"), nullable=False, index=True)
+    lat = Column(Float, nullable=False)
+    lng = Column(Float, nullable=False)
+    accuracy_m = Column(Float, nullable=True)
+    recorded_at = Column(DateTime(timezone=True), nullable=False, index=True)
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 

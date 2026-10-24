@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
-import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
+import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useLanguage } from '../context/LanguageContext'
 
@@ -34,32 +34,58 @@ const LocateIcon = () => (
   <svg {...svgProps}><circle cx="12" cy="12" r="4" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>
 )
 
-function MapCenter({ center }) {
+// A fix is "live" while it is younger than three missed 15 s updates.
+const STALE_AFTER_MS = 45000
+
+function MapCenter({ center, follow }) {
   const map = useMap()
   const [latitude, longitude] = center
 
   useEffect(() => {
-    map.setView([latitude, longitude], map.getZoom())
-  }, [latitude, longitude, map])
+    // Follow the moving truck smoothly; jump only when the view is first placed.
+    if (follow) map.panTo([latitude, longitude], { animate: true, duration: 0.8 })
+    else map.setView([latitude, longitude], map.getZoom())
+  }, [latitude, longitude, map]) // eslint-disable-line
 
   return null
 }
 
-export default function TripMap({ booking, market }) {
+function useNow(active) {
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    if (!active) return undefined
+    const timer = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [active])
+  return now
+}
+
+const timeOf = (value) => (value ? new Date(/[zZ]|[+-]\d\d:\d\d$/.test(value) ? value : `${value}Z`).getTime() : null)
+
+export default function TripMap({ booking, market, trail }) {
   const { t, statusLabel } = useLanguage()
   const shellRef = useRef(null)
   const [map, setMap] = useState(null)
   const [fullscreen, setFullscreen] = useState(false)
   const [layer, setLayer] = useState('map')
 
-  const locationAvailable = (
+  const points = trail?.sharing ? trail.points.map((point) => [Number(point.lat), Number(point.lng)]) : []
+  const latestPoint = trail?.sharing ? trail.points[trail.points.length - 1] : null
+  const locationAvailable = Boolean(latestPoint) || (
     booking.location_consent
     && ['picked_up', 'in_transit'].includes(booking.status)
     && booking.last_lat !== null
     && booking.last_lng !== null
   )
+  const truckAt = latestPoint
+    ? [Number(latestPoint.lat), Number(latestPoint.lng)]
+    : [Number(booking.last_lat), Number(booking.last_lng)]
+  const reportedAt = timeOf(latestPoint?.recorded_at || trail?.last_reported_at || booking.last_reported_at)
+  const now = useNow(locationAvailable)
+  const ageMs = reportedAt ? Math.max(0, now - reportedAt) : null
+  const stale = ageMs !== null && ageMs > STALE_AFTER_MS
   const center = locationAvailable
-    ? [Number(booking.last_lat), Number(booking.last_lng)]
+    ? truckAt
     : market
       ? [Number(market.latitude), Number(market.longitude)]
       : [20.5937, 78.9629]
@@ -118,19 +144,42 @@ export default function TripMap({ booking, market }) {
         zoomControl={false}
         ref={setMap}
       >
-        <MapCenter center={center} />
+        <MapCenter center={center} follow={locationAvailable} />
         <TileLayer key={layer} attribution={LAYERS[layer].attribution} url={LAYERS[layer].url} maxZoom={19} />
         {market && (
           <CircleMarker center={[Number(market.latitude), Number(market.longitude)]} radius={8}>
             <Popup>{market.name} · {t('common.destination')}</Popup>
           </CircleMarker>
         )}
+        {points.length > 1 && (
+          <Polyline positions={points} pathOptions={{ color: '#1a73e8', weight: 5, opacity: 0.8 }} />
+        )}
+        {points.length > 1 && (
+          <CircleMarker center={points[0]} radius={5} pathOptions={{ color: '#ffffff', weight: 2, fillColor: '#1a73e8', fillOpacity: 1 }}>
+            <Popup>{t('common.pickup')}</Popup>
+          </CircleMarker>
+        )}
         {locationAvailable && (
-          <Marker position={center} icon={truckIcon}>
-            <Popup>{t('tracking.lastReportedLocation')}</Popup>
+          <Marker position={truckAt} icon={truckIcon}>
+            <Popup>
+              {t('tracking.lastReportedLocation')}<br />
+              {truckAt[0].toFixed(5)}, {truckAt[1].toFixed(5)}
+            </Popup>
           </Marker>
         )}
       </MapContainer>
+
+      {locationAvailable && ageMs !== null && (
+        <div className={`trk-live-pill ${stale ? 'stale' : ''}`} role="status">
+          <span className="live-share-dot" aria-hidden="true" />
+          {stale
+            ? t('live.staleMin', [Math.max(1, Math.round(ageMs / 60000))])
+            : t('live.liveAgo', [Math.round(ageMs / 1000)])}
+        </div>
+      )}
+      {trail?.sharing && !latestPoint && !locationAvailable && (
+        <div className="trk-live-pill" role="status">{t('live.waitingFirst')}</div>
+      )}
 
       {fullscreen ? (
         <div className="trk-gm-card">
