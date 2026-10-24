@@ -1,6 +1,7 @@
 .sa-shell {
   display: flex;
   min-height: 100dvh;
+  min-width: 0;
   background: #f3f7f1;
 }
 
@@ -539,27 +540,28 @@
 }
 @media (max-width: 480px) {
   .sa-topbar {
-    align-items: flex-start;
-    gap: 8px;
-    padding: 10px 12px;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    padding: max(10px, env(safe-area-inset-top)) 12px 10px;
   }
-  .sa-topbar-left { gap: 9px; flex: 1 1 auto; }
-  .sa-page-heading { flex: 1 1 auto; }
+  .sa-topbar-left { gap: 9px; flex: 1 1 100%; }
+  .sa-page-heading { flex: 1 1 0; }
   .sa-page-heading h1 {
-    display: -webkit-box;
     overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
+    display: -webkit-box;
     font-size: 15px;
     line-height: 1.25;
     overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
-  .sa-topbar-actions { gap: 5px; flex: 0 0 auto; }
+  .sa-topbar-actions { width: 100%; justify-content: flex-end; gap: 7px; }
   .sa-lang .lang-select { height: 36px; padding: 0 7px; }
   .sa-lang .lang-select select { max-width: 76px; font-size: 11px; }
   .sa-user .sa-avatar { width: 30px; height: 30px; }
   .sa-icon-btn { width: 36px; height: 36px; }
   .sa-notif-panel { position: fixed; left: 12px; right: 12px; top: 72px; width: auto; }
-  .sa-content { padding: 16px 12px 26px; }
+  .sa-content { min-width: 0; padding: 16px 12px max(26px, env(safe-area-inset-bottom)); }
   .sa-sidebar { width: min(250px, calc(100vw - 48px)); flex-basis: min(250px, calc(100vw - 48px)); }
+  .sa-footer { padding-right: 12px; padding-left: 12px; }
 }

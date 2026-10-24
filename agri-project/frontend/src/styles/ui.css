@@ -406,12 +406,18 @@
     min-width: 0;
   }
 
+  .ui-grid > *,
+  .ui-toolbar > *,
+  .ui-card-head > * {
+    min-width: 0;
+  }
+
   .ui-page { gap: 14px; }
   .ui-toolbar { align-items: flex-start; }
   .ui-toolbar > :first-child { min-width: 0; }
   .ui-toolbar h2,
   .ui-section-title h2 { overflow-wrap: anywhere; }
-  .ui-toolbar-actions { max-width: 100%; }
+  .ui-toolbar-actions { min-width: 0; max-width: 100%; }
   .ui-card-head { padding: 14px 14px 0; }
   .ui-card-body { padding: 13px 14px 15px; }
   .ui-section-title { align-items: flex-start; flex-wrap: wrap; }
