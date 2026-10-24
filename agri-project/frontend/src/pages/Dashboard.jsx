@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
+import L from 'leaflet'
+import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { compareMarkets, getDashboard } from '../services/operationsService'
@@ -67,54 +70,78 @@ function Trend({ value }) {
 
 function MarketMap({ markets }) {
   const { t } = useLanguage()
-  const points = useMemo(() => {
-    if (!markets?.length) return []
-    const lats = markets.map((m) => Number(m.latitude) || 0)
-    const lngs = markets.map((m) => Number(m.longitude) || 0)
-    const minLat = Math.min(...lats)
-    const maxLat = Math.max(...lats)
-    const minLng = Math.min(...lngs)
-    const maxLng = Math.max(...lngs)
-    const latSpan = maxLat - minLat || 1
-    const lngSpan = maxLng - minLng || 1
-    const nearestId = [...markets].sort((a, b) => a.distance_km - b.distance_km)[0]?.id
-    return markets.map((market) => ({
-      ...market,
-      x: 12 + ((Number(market.longitude) - minLng) / lngSpan) * 76,
-      y: 86 - ((Number(market.latitude) - minLat) / latSpan) * 68,
-      nearest: market.id === nearestId,
-    }))
-  }, [markets])
+  const locatedMarkets = useMemo(() => markets.filter((market) => {
+    const latitude = Number(market.latitude)
+    const longitude = Number(market.longitude)
+    return Number.isFinite(latitude) && Number.isFinite(longitude)
+      && latitude >= -90 && latitude <= 90
+      && longitude >= -180 && longitude <= 180
+      && (latitude !== 0 || longitude !== 0)
+  }), [markets])
 
+  const center = locatedMarkets.length
+    ? [Number(locatedMarkets[0].latitude), Number(locatedMarkets[0].longitude)]
+    : [11, 78]
+  const nearestId = [...locatedMarkets].sort((a, b) => a.distance_km - b.distance_km)[0]?.id
   return (
-    <div className="dbm-map" role="img" aria-label={t('dash.mapLabel')}>
-      <span className="dbm-map-road dbm-road-a" />
-      <span className="dbm-map-road dbm-road-b" />
-      <span className="dbm-map-river" />
-      {points.map((market) => (
-        <span
+    <MapContainer
+      className="dbm-map"
+      center={center}
+      zoom={locatedMarkets.length ? 8 : 6}
+      scrollWheelZoom={false}
+      aria-label={t('dash.mapLabel')}
+    >
+      <TileLayer
+        attribution="&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors"
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        maxZoom={19}
+      />
+      {locatedMarkets.map((market) => (
+        <CircleMarker
           key={market.id}
-          className={`dbm-map-pin ${market.nearest ? 'nearest' : ''}`}
-          style={{ left: `${market.x}%`, top: `${market.y}%` }}
-          title={`${market.name} · ${market.distance_km} km`}
+          center={[Number(market.latitude), Number(market.longitude)]}
+          radius={market.id === nearestId ? 9 : 7}
+          pathOptions={{
+            color: '#ffffff',
+            weight: 2,
+            fillColor: market.id === nearestId ? '#218a4d' : '#668b71',
+            fillOpacity: 1,
+          }}
         >
-          <span className="dbm-pin-dot"><Icon name="markets" size={13} /></span>
-          <span className="dbm-pin-label">
-            <strong>{market.name.replace(/ (Market|Mandi|Central Market)$/i, '')}</strong>
-            <small>{Number(market.distance_km).toFixed(0)} km</small>
-          </span>
-        </span>
+          <Popup>
+            <strong>{market.name}</strong><br />
+            {market.district}, {market.state}<br />
+            {Number(market.distance_km).toFixed(0)} km · {market.eta_minutes} min
+          </Popup>
+        </CircleMarker>
       ))}
-      <span className="dbm-map-you" title={t('dash.yourLocation')}>
-        <span className="dbm-you-pulse" />
-        <span className="dbm-you-dot" />
-      </span>
-      <span className="dbm-map-legend">
-        <span><i className="dot nearest" />{t('dash.nearestMandi')}</span>
-        <span><i className="dot" />{t('dash.otherMandis')}</span>
-      </span>
-    </div>
+      <MarketMapViewport markets={locatedMarkets} />
+    </MapContainer>
   )
+}
+
+function MarketMapViewport({ markets }) {
+  const map = useMap()
+  const marketKey = markets
+    .map((market) => `${market.id}:${market.latitude}:${market.longitude}`)
+    .join('|')
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      map.invalidateSize()
+      if (markets.length === 1) {
+        map.setView([Number(markets[0].latitude), Number(markets[0].longitude)], 10)
+      } else if (markets.length > 1) {
+        const bounds = L.latLngBounds(
+          markets.map((market) => [Number(market.latitude), Number(market.longitude)]),
+        )
+        if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 11 })
+      }
+    }, 80)
+    return () => clearTimeout(timer)
+  }, [map, marketKey]) // eslint-disable-line
+
+  return null
 }
 
 function FarmerDashboard() {

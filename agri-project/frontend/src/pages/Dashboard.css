@@ -100,153 +100,14 @@
 
 .dbm-map-body { display: flex; flex-direction: column; gap: 11px; }
 .dbm-map {
-  position: relative;
+  width: 100%;
   height: 228px;
   border-radius: 13px;
   overflow: hidden;
-  background:
-    radial-gradient(90% 80% at 20% 20%, #f3f9ec 0%, transparent 60%),
-    linear-gradient(145deg, #e9f3e1, #f7faf2 66%, #edf4e6);
   border: 1px solid #e4eddd;
 }
-.dbm-map::before, .dbm-map::after {
-  content: "";
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-}
-.dbm-map::before {
-  width: 180px;
-  height: 180px;
-  background: #d9ecd0;
-  left: -55px;
-  bottom: -70px;
-  opacity: 0.8;
-}
-.dbm-map::after {
-  width: 120px;
-  height: 120px;
-  background: #e3f0d8;
-  right: -30px;
-  top: -40px;
-}
-.dbm-map-road {
-  position: absolute;
-  height: 7px;
-  background: #fff;
-  border-radius: 8px;
-  opacity: 0.85;
-  box-shadow: 0 0 0 1px rgba(204, 221, 197, 0.7);
-}
-.dbm-road-a { width: 92%; left: 4%; top: 42%; transform: rotate(-8deg); }
-.dbm-road-b { width: 74%; left: 10%; top: 7%; transform: rotate(64deg); opacity: 0.65; }
-.dbm-map-river {
-  position: absolute;
-  width: 130%;
-  height: 16px;
-  left: -15%;
-  bottom: 12%;
-  background: #c6e4e7;
-  border-radius: 60% 45% 55% 40%;
-  transform: rotate(4deg);
-  opacity: 0.8;
-}
-.dbm-map-pin {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.dbm-pin-dot {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #fff;
-  border: 2px solid #78ad84;
-  color: #4d8360;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 3px 8px rgba(35, 70, 47, 0.16);
-}
-.dbm-map-pin.nearest { z-index: 4; }
-.dbm-map-pin.nearest .dbm-pin-dot {
-  width: 28px;
-  height: 28px;
-  background: #218a4d;
-  border-color: #fff;
-  color: #fff;
-  box-shadow: 0 0 0 5px rgba(33, 138, 77, 0.18), 0 6px 12px rgba(23, 76, 43, 0.25);
-}
-.dbm-pin-label {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 3px;
-  padding: 2px 5px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.9);
-  line-height: 1.15;
-  box-shadow: 0 2px 5px rgba(30, 56, 38, 0.08);
-  white-space: nowrap;
-}
-.dbm-pin-label strong { font-size: 7.8px; color: #3c5142; font-weight: 800; }
-.dbm-pin-label small { font-size: 7px; color: #8a988d; font-weight: 700; }
-.dbm-map-pin.nearest .dbm-pin-label { background: #1f7f48; }
-.dbm-map-pin.nearest .dbm-pin-label strong { color: #fff; }
-.dbm-map-pin.nearest .dbm-pin-label small { color: #cbe9d5; }
-.dbm-map-you {
-  position: absolute;
-  left: 27%;
-  top: 61%;
-  z-index: 2;
-  width: 14px;
-  height: 14px;
-  transform: translate(-50%, -50%);
-}
-.dbm-you-dot {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: #edb93f;
-  border: 2.5px solid #fff;
-  box-shadow: 0 2px 5px rgba(83, 59, 10, 0.25);
-}
-.dbm-you-pulse {
-  position: absolute;
-  inset: -9px;
-  border-radius: 50%;
-  background: rgba(237, 185, 63, 0.24);
-  animation: dbm-pulse 2s ease-out infinite;
-}
-@keyframes dbm-pulse {
-  0% { transform: scale(0.7); opacity: 1; }
-  100% { transform: scale(1.4); opacity: 0; }
-}
-.dbm-map-legend {
-  position: absolute;
-  left: 8px;
-  bottom: 7px;
-  z-index: 5;
-  display: flex;
-  gap: 10px;
-  padding: 4px 7px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.86);
-  font-size: 7.5px;
-  font-weight: 700;
-  color: #6e7e72;
-}
-.dbm-map-legend span { display: inline-flex; align-items: center; gap: 3px; }
-.dbm-map-legend .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #9fb5a4;
-}
-.dbm-map-legend .dot.nearest { background: #218a4d; }
+.dbm-map .leaflet-control-attribution { font-size: 8px; }
+.dbm-map .leaflet-popup-content { font-size: 11px; line-height: 1.5; }
 
 .dbm-nearest-list { display: flex; flex-direction: column; gap: 5px; }
 .dbm-nearest-item {
@@ -511,7 +372,6 @@
   .dbm-compare-summary { padding: 16px; }
   .dbm-compare-table { padding: 10px; }
   .dbm-map { height: 220px; }
-  .dbm-pin-label strong { font-size: 7px; }
   .dbm-insight { align-items: flex-start; flex-wrap: wrap; }
   .dbm-insight .ui-btn { width: 100%; }
 }
