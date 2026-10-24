@@ -508,7 +508,6 @@
   .sa-user-meta { display: none; }
 }
 @media (max-width: 1050px) {
-  .sa-lang { display: none; }
   .sa-content { padding: 22px; }
 }
 @media (max-width: 900px) {
@@ -539,8 +538,28 @@
   .sa-footer { flex-direction: column; align-items: flex-start; gap: 4px; }
 }
 @media (max-width: 480px) {
-  .sa-topbar-actions { gap: 7px; }
-  .sa-user .sa-avatar { width: 32px; height: 32px; }
-  .sa-icon-btn { width: 38px; height: 38px; }
+  .sa-topbar {
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .sa-topbar-left { gap: 9px; flex: 1 1 auto; }
+  .sa-page-heading { flex: 1 1 auto; }
+  .sa-page-heading h1 {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    font-size: 15px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+  .sa-topbar-actions { gap: 5px; flex: 0 0 auto; }
+  .sa-lang .lang-select { height: 36px; padding: 0 7px; }
+  .sa-lang .lang-select select { max-width: 76px; font-size: 11px; }
+  .sa-user .sa-avatar { width: 30px; height: 30px; }
+  .sa-icon-btn { width: 36px; height: 36px; }
   .sa-notif-panel { position: fixed; left: 12px; right: 12px; top: 72px; width: auto; }
+  .sa-content { padding: 16px 12px 26px; }
+  .sa-sidebar { width: min(250px, calc(100vw - 48px)); flex-basis: min(250px, calc(100vw - 48px)); }
 }

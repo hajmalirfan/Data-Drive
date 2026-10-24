@@ -396,3 +396,42 @@
   .crops-summary, .prices-stats, .mk-stats, .bookings-stats, .dbm-kpis,
   .dbm-skeleton-kpis, .driver-kpis, .reports-stats { grid-template-columns: minmax(0, 1fr) !important; }
 }
+
+@media (max-width: 640px) {
+  .ui-page,
+  .ui-card,
+  .ui-grid,
+  .ui-toolbar,
+  .ui-section-title {
+    min-width: 0;
+  }
+
+  .ui-page { gap: 14px; }
+  .ui-toolbar { align-items: flex-start; }
+  .ui-toolbar > :first-child { min-width: 0; }
+  .ui-toolbar h2,
+  .ui-section-title h2 { overflow-wrap: anywhere; }
+  .ui-toolbar-actions { max-width: 100%; }
+  .ui-card-head { padding: 14px 14px 0; }
+  .ui-card-body { padding: 13px 14px 15px; }
+  .ui-section-title { align-items: flex-start; flex-wrap: wrap; }
+  .ui-form-actions { flex-wrap: wrap; }
+  .ui-form-actions > .ui-btn { flex: 1 1 120px; }
+  .ui-modal-backdrop {
+    align-items: flex-end;
+    padding: 8px 8px max(8px, env(safe-area-inset-bottom));
+  }
+  .ui-modal {
+    width: 100%;
+    max-width: none;
+    border-radius: 17px 17px 12px 12px;
+  }
+  .ui-modal-foot { flex-wrap: wrap; }
+}
+
+@media (max-width: 380px) {
+  .ui-toolbar-actions { width: 100%; }
+  .ui-toolbar-actions > .ui-btn { flex: 1 1 auto; }
+  .ui-btn { padding-right: 10px; padding-left: 10px; }
+  .ui-card-head { gap: 8px; }
+}

@@ -275,7 +275,9 @@ export default function Login() {
                   <span className="auth-input-icon"><Icon name="phone" size={16} /></span>
                   <input
                     type="text"
-                    inputMode="tel"
+                    inputMode="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
                     autoComplete="username"
                     placeholder={t('login.identifierPlaceholder')}
                     value={identifier}
