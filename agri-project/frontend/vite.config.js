@@ -47,7 +47,9 @@ function cspMeta(csp) {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const csp = contentSecurityPolicy(env.VITE_API_URL || 'http://localhost:8000')
+  const csp = contentSecurityPolicy(
+    env.VITE_API_URL || 'https://smartag-ops-backend.onrender.com',
+  )
   return {
     plugins: [react(), cspMeta(csp)],
     server: { port: 5173, headers: SECURITY_HEADERS },

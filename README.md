@@ -103,7 +103,7 @@ npm install
 Create `.env` from `.env.example`:
 
 ```env
-VITE_API_URL=http://localhost:8000
+VITE_API_URL=https://smartag-ops-backend.onrender.com
 ```
 
 Start the development server:
@@ -112,7 +112,9 @@ Start the development server:
 npm run dev
 ```
 
-Open http://localhost:5173.
+The frontend now uses the deployed Render backend by default. Set
+`VITE_API_URL` to another API origin only when intentionally targeting a
+different backend. Open http://localhost:5173.
 
 ## Creating an Account
 

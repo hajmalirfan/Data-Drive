@@ -105,12 +105,12 @@ route and navigation restrictions are supplementary user-interface controls.
 ### Request and authentication flow
 
 The browser client calls the API through the Axios service in
-`agri-project/frontend/src/services/api.js`. The backend base URL is configured
-by `VITE_API_URL`; the API base URL defaults to `http://localhost:8000` for
-local frontend development. After authentication, the client stores the bearer
-token and current user in browser local storage and sends the token in the
-`Authorization` header. The backend resolves the current user from the signed
-token and applies role checks on protected operations.
+`agri-project/frontend/src/services/api.js`. The backend base URL can be
+overridden by `VITE_API_URL`; the frontend defaults to the deployed Render API
+at `https://smartag-ops-backend.onrender.com`. After authentication, the client
+stores the bearer token and current user in browser local storage and sends the
+token in the `Authorization` header. The backend resolves the current user from
+the signed token and applies role checks on protected operations.
 
 The frontend is a single-page application with route guards in `App.jsx`. The
 backend is the source of truth for identity and authorization. Do not treat
@@ -434,7 +434,7 @@ mean a value must be provided when the associated feature is used.
 
 | Variable | Purpose |
 | --- | --- |
-| `VITE_API_URL` | Backend origin used by the frontend; local example is `http://localhost:8000`. |
+| `VITE_API_URL` | Backend origin used by the frontend; defaults to `https://smartag-ops-backend.onrender.com`. |
 
 Vite variables are embedded in the client build and must never contain server
 credentials.
@@ -487,8 +487,9 @@ Copy-Item .env.example .env
 npm run dev
 ```
 
-Open `http://localhost:5173`. The frontend `.env.example` sets
-`VITE_API_URL=http://localhost:8000` for local development.
+Open `http://localhost:5173`. The frontend `.env.example` and built-in
+development default use `https://smartag-ops-backend.onrender.com`. Set
+`VITE_API_URL` only when intentionally testing against a different API.
 
 ### First administrator
 
