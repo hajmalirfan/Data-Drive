@@ -4,8 +4,9 @@ from sqlalchemy import inspect
 
 from app.core.config import settings
 from app.core.database import Base, engine
-from app.models import chat, login_otp, operations, password_reset, user  # noqa: F401 - register models
-from app.routers import auth, bookings, chat as chat_router, crops, dashboard, markets, trucks
+from app.core import metrics
+from app.models import chat, login_otp, metrics as metrics_model, operations, password_reset, user, user_document  # noqa: F401 - register models
+from app.routers import admin, auth, bookings, chat as chat_router, crops, dashboard, documents, markets, trucks
 
 
 def migrate_schema():
@@ -98,7 +99,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+metrics.install(app)
+
 app.include_router(auth.router)
+app.include_router(admin.router)
+app.include_router(documents.router)
 app.include_router(chat_router.router)
 app.include_router(crops.router)
 app.include_router(markets.router)

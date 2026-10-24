@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-flash-latest"
     GEMINI_TIMEOUT_SECONDS: int = 180
+    # Voice input transcription: a fast "lite" model; falls back to GEMINI_MODEL when busy.
+    GEMINI_SPEECH_MODEL: str = "gemini-flash-lite-latest"
     SEED_DEMO_DATA: bool = False
 
     # AI answer size and history limits (kept small for fast, focused replies)

@@ -7,8 +7,10 @@ import {
   getConversation,
   listConversations,
   streamMessage,
+  transcribeAudio,
 } from '../services/chatService'
 import Icon from '../components/Icons'
+import useVoiceInput, { MAX_RECORD_SECONDS } from '../hooks/useVoiceInput'
 import './Chat.css'
 
 function TypingDots() {
@@ -22,7 +24,7 @@ function TypingDots() {
 }
 
 export default function Chat() {
-  const { t, lang } = useLanguage()
+  const { t, lang, languages } = useLanguage()
 
   const [conversations, setConversations] = useState([])
   const [activeId, setActiveId] = useState(null)
@@ -40,6 +42,24 @@ export default function Chat() {
 
   const scrollRef = useRef(null)
   const textareaRef = useRef(null)
+
+  // Voice input: record, transcribe on the backend in the app language, append to the draft.
+  const voice = useVoiceInput(async (wav) => {
+    const { text } = await transcribeAudio(wav, lang).catch((err) => {
+      throw new Error(err.response?.data?.detail || t('voice.errFailed'))
+    })
+    if (!text?.trim()) throw new Error(t('voice.errNoSpeech'))
+    setInput((prev) => (prev.trim() ? `${prev.trimEnd()} ${text.trim()}` : text.trim()))
+    setTimeout(() => textareaRef.current?.focus(), 30)
+  })
+  const voiceErrorText = {
+    unsupported: t('voice.errUnsupported'),
+    denied: t('voice.errDenied'),
+    nomic: t('voice.errNoMic'),
+  }[voice.error] || voice.error
+  const recording = voice.state === 'recording'
+  const transcribing = voice.state === 'processing'
+  const voiceLanguage = languages.find((item) => item.code === lang)?.native || lang
 
   const refreshStatus = () => {
     getChatStatus().then(setStatus).catch(() => setStatus({ available: false }))
@@ -395,22 +415,60 @@ export default function Chat() {
         <div className="chat-composer-wrap">
           <div className="chat-composer-block">
             {error && <div className="chat-error" role="alert">{error}</div>}
-            <div className="chat-composer">
-              <textarea
-                ref={textareaRef}
-                rows={1}
-                value={input}
-                placeholder={t('chatPlaceholder')}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={handleKeyDown}
-                disabled={sending}
-                aria-label={t('chatPlaceholder')}
-              />
+            {voiceErrorText && (
+              <div className="chat-error" role="alert">
+                {voiceErrorText}
+                <button type="button" className="chat-voice-dismiss" onClick={() => voice.setError('')} aria-label={t('common.close')}>
+                  <Icon name="close" size={12} />
+                </button>
+              </div>
+            )}
+            <div className={`chat-composer ${recording ? 'is-recording' : ''}`}>
+              {recording ? (
+                <div className="chat-voice-live" role="status" aria-live="polite">
+                  <span className="chat-voice-dot" aria-hidden="true" />
+                  <span>{t('voice.listening', [voiceLanguage])}</span>
+                  <span className="chat-voice-wave" aria-hidden="true"><i /><i /><i /><i /><i /></span>
+                  <b>0:{String(voice.seconds).padStart(2, '0')} / 0:{MAX_RECORD_SECONDS}</b>
+                  <button type="button" className="chat-voice-cancel" onClick={voice.cancel}>{t('common.cancel')}</button>
+                </div>
+              ) : (
+                <textarea
+                  ref={textareaRef}
+                  rows={1}
+                  value={input}
+                  placeholder={transcribing ? t('voice.transcribing') : t('chatPlaceholder')}
+                  onChange={(event) => setInput(event.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={sending || transcribing}
+                  aria-label={t('chatPlaceholder')}
+                />
+              )}
+              <button
+                type="button"
+                className={`chat-mic ${recording ? 'recording' : ''}`}
+                onClick={recording ? voice.stop : voice.start}
+                disabled={sending || transcribing || !voice.supported}
+                aria-label={recording ? t('voice.stop') : t('voice.start', [voiceLanguage])}
+                title={recording ? t('voice.stop') : t('voice.start', [voiceLanguage])}
+                aria-pressed={recording}
+              >
+                {transcribing ? (
+                  <span className="ui-spinner chat-mic-spinner" />
+                ) : recording ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor" /></svg>
+                ) : (
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="9" y="3" width="6" height="11" rx="3" />
+                    <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" />
+                  </svg>
+                )}
+              </button>
               <button
                 type="button"
                 className="chat-send"
                 onClick={handleSend}
-                disabled={!input.trim() || sending}
+                disabled={!input.trim() || sending || recording || transcribing}
                 aria-label={t('chatSend')}
                 title={t('chatSend')}
               >

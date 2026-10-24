@@ -43,7 +43,27 @@ export const fetchMe = () => api.get('/api/auth/me').then((r) => r.data)
 export const updateProfile = (payload) =>
   api.patch('/api/auth/me', payload).then((r) => r.data)
 
+export const fetchMyDocuments = () =>
+  api.get('/api/auth/me/documents').then((r) => r.data)
+
+// Returns an object URL for the stored image; revoke it with URL.revokeObjectURL when done.
+export const fetchMyDocumentImage = (docType) =>
+  api.get(`/api/auth/me/documents/${docType}`, { responseType: 'blob' })
+    .then((r) => URL.createObjectURL(r.data))
+
+export const uploadMyDocument = (docType, file) => {
+  const body = new FormData()
+  body.append('file', file)
+  return api.put(`/api/auth/me/documents/${docType}`, body).then((r) => r.data)
+}
+
+export const deleteMyDocument = (docType) =>
+  api.delete(`/api/auth/me/documents/${docType}`)
+
 export const fetchUsers = () => api.get('/api/auth/users').then((r) => r.data)
+
+export const deleteUser = (userId) =>
+  api.delete(`/api/auth/users/${userId}`)
 
 export const updateUserRole = (userId, role) =>
   api.patch(`/api/auth/users/${userId}/role`, { role }).then((r) => r.data)

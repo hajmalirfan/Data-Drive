@@ -16,12 +16,12 @@ import { formatIndiaDate, formatIndiaDateTime, getIndiaDateTimestamp } from '../
 
 const NAV = [
   { to: '/dashboard', label: 'nav.dashboard', icon: 'dashboard' },
-  { to: '/crops', label: 'nav.crops', icon: 'crops', roles: ['farmer', 'admin'] },
-  { to: '/market-prices', label: 'nav.marketPrices', icon: 'prices' },
-  { to: '/markets', label: 'nav.markets', icon: 'markets' },
-  { to: '/trucks', label: 'nav.trucks', icon: 'truck', roles: ['farmer', 'admin', 'truck_operator'] },
-  { to: '/tracking', label: 'nav.tracking', icon: 'tracking', roles: ['farmer', 'admin', 'truck_operator'] },
-  { to: '/bookings', label: 'nav.bookings', icon: 'bookings', roles: ['farmer', 'admin', 'truck_operator'] },
+  { to: '/crops', label: 'nav.crops', icon: 'crops', roles: ['farmer'] },
+  { to: '/market-prices', label: 'nav.marketPrices', icon: 'prices', roles: ['farmer', 'truck_operator', 'market_manager', 'buyer', 'marketer'] },
+  { to: '/markets', label: 'nav.markets', icon: 'markets', roles: ['farmer', 'truck_operator', 'market_manager', 'buyer', 'marketer'] },
+  { to: '/trucks', label: 'nav.trucks', icon: 'truck', roles: ['farmer', 'truck_operator'] },
+  { to: '/tracking', label: 'nav.tracking', icon: 'tracking', roles: ['farmer', 'truck_operator'] },
+  { to: '/bookings', label: 'nav.bookings', icon: 'bookings', roles: ['farmer', 'truck_operator'] },
   { to: '/reports', label: 'nav.reports', icon: 'reports', roles: ['farmer', 'admin', 'market_manager'] },
   { to: '/chat', label: 'nav.chat', icon: 'chat' },
   { to: '/profile', label: 'nav.profile', icon: 'profile' },
@@ -92,6 +92,9 @@ export default function AppShell({ children }) {
   if (isDriver && location.pathname === '/dashboard') {
     titleKey = 'title.driverDashboard'
     subtitleKey = 'subtitle.driverDashboard'
+  }
+  if (role === 'admin' && location.pathname === '/dashboard') {
+    subtitleKey = 'subtitle.adminDashboard'
   }
   if (isDriver && location.pathname === '/profile') {
     titleKey = 'title.profileSettings'

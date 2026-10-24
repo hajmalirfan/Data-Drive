@@ -1,7 +1,7 @@
 import math
 import re
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from typing import List
@@ -18,6 +18,7 @@ from app.core.security import (
     otp_matches,
 )
 from app.models.login_otp import AdminLoginOTP
+from app.models.operations import Truck
 from app.models.password_reset import PasswordResetOTP
 from app.models.user import User, VALID_ROLES
 from app.schemas.user import (
@@ -475,6 +476,32 @@ def update_user_role(user_id: int, data: UserRoleUpdate, db: Session = Depends(g
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(user_id: int, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    """Admin only: permanently delete a user.
+
+    Database rules handle related rows: crops, bookings, notifications, chats and
+    documents are deleted; trucks and price entries are kept but unlinked.
+    """
+    if user_id == admin.id:
+        raise HTTPException(status_code=400, detail="You cannot remove your own account")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.role == "admin" and db.query(User).filter(User.role == "admin").count() <= 1:
+        raise HTTPException(status_code=400, detail="At least one admin account must remain")
+
+    # Unlinked trucks must not stay bookable without an operator.
+    db.query(Truck).filter(Truck.operator_id == user.id).update(
+        {Truck.status: "inactive"}, synchronize_session=False
+    )
+    db.query(PasswordResetOTP).filter(PasswordResetOTP.email == user.email).delete(synchronize_session=False)
+    db.query(AdminLoginOTP).filter(AdminLoginOTP.email == user.email).delete(synchronize_session=False)
+    db.query(User).filter(User.id == user.id).delete(synchronize_session=False)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.get("/farmer-area")

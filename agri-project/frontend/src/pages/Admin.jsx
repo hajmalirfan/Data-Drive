@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import Icon from '../components/Icons'
-import { fetchUsers, ROLES, updateUserRole } from '../services/authService'
+import { deleteUser, fetchUsers, ROLES, updateUserRole } from '../services/authService'
 import './Admin.css'
+import { useAuth } from '../context/AuthContext'
 import { useLanguage } from '../context/LanguageContext'
 
 export default function Admin() {
   const { t, statusLabel, roleLabel } = useLanguage()
+  const { user: currentUser } = useAuth()
+  const [confirmId, setConfirmId] = useState(null)
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -54,6 +57,22 @@ export default function Admin() {
       setError(err.response?.data?.detail || t('admin.roleError'))
     } finally {
       setBusyId(null)
+    }
+  }
+
+  const removeUser = async (user) => {
+    setBusyId(user.id)
+    setError('')
+    setNotice('')
+    try {
+      await deleteUser(user.id)
+      setUsers((prev) => prev.filter((item) => item.id !== user.id))
+      setNotice(t('admin.userRemoved', [user.full_name || user.email]))
+    } catch (err) {
+      setError(err.response?.data?.detail || t('admin.removeError'))
+    } finally {
+      setBusyId(null)
+      setConfirmId(null)
     }
   }
 
@@ -129,6 +148,7 @@ export default function Admin() {
                     <th>{t('common.location')}</th>
                     <th>{t('profile.role')}</th>
                     <th>{t('admin.thChangeRole')}</th>
+                    <th>{t('admin.thActions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -161,6 +181,43 @@ export default function Admin() {
                         >
                 {ROLES.map((role) => <option key={role} value={role}>{roleLabel(role)}</option>)}
                         </select>
+                      </td>
+                      <td>
+                        {user.id === currentUser?.id ? (
+                          <span className="muted admin-you">{t('admin.you')}</span>
+                        ) : confirmId === user.id ? (
+                          <span className="admin-confirm">
+                            <small>{t('admin.removeConfirm')}</small>
+                            <span>
+                              <button
+                                type="button"
+                                className="ui-btn ui-btn-danger ui-btn-sm"
+                                disabled={busyId === user.id}
+                                onClick={() => removeUser(user)}
+                              >
+                                {busyId === user.id ? t('admin.removing') : t('admin.removeYes')}
+                              </button>
+                              <button
+                                type="button"
+                                className="ui-btn ui-btn-outline ui-btn-sm"
+                                disabled={busyId === user.id}
+                                onClick={() => setConfirmId(null)}
+                              >
+                                {t('common.cancel')}
+                              </button>
+                            </span>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="ui-btn ui-btn-outline ui-btn-sm admin-remove"
+                            disabled={busyId === user.id}
+                            onClick={() => setConfirmId(user.id)}
+                            aria-label={t('admin.removeFor', [user.email])}
+                          >
+                            <Icon name="trash" size={13} />{t('admin.remove')}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}

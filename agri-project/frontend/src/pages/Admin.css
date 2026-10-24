@@ -80,6 +80,13 @@
 }
 .admin-note svg { flex: 0 0 auto; margin-top: 1px; }
 
+.admin-remove { display: inline-flex; align-items: center; gap: 4px; color: #b3402f; border-color: #f0d2cc; }
+.admin-remove:hover:not(:disabled) { background: #fdf1ef; border-color: #e3a89d; }
+.admin-confirm { display: flex; flex-direction: column; gap: 5px; min-width: 150px; }
+.admin-confirm small { font-size: 9.5px; font-weight: 700; color: #b3402f; }
+.admin-confirm > span { display: flex; gap: 5px; }
+.admin-you { font-size: 10px; font-weight: 700; }
+
 @media (max-width: 1120px) {
   .admin-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

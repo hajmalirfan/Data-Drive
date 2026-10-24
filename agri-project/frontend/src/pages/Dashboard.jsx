@@ -5,6 +5,7 @@ import { compareMarkets, getDashboard } from '../services/operationsService'
 import Icon from '../components/Icons'
 import Modal from '../components/Modal'
 import DriverDashboard from './DriverDashboard'
+import AdminDashboard from './AdminDashboard'
 import './Dashboard.css'
 import { useLanguage } from '../context/LanguageContext'
 import { formatIndiaDate, formatIndiaDateTime, getIndiaHour } from '../utils/dateTime'
@@ -743,6 +744,7 @@ function FarmerDashboard() {
 }
 
 export default function Dashboard() {
-  const { isTruckOperator } = useAuth()
+  const { isTruckOperator, isAdmin } = useAuth()
+  if (isAdmin) return <AdminDashboard />
   return isTruckOperator ? <DriverDashboard /> : <FarmerDashboard />
 }

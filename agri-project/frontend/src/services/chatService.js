@@ -17,6 +17,13 @@ export const renameConversation = (id, title) =>
 export const deleteConversation = (id) =>
   api.delete(`/api/chat/conversations/${id}`)
 
+export const transcribeAudio = (audioBlob, language) => {
+  const body = new FormData()
+  body.append('audio', audioBlob, 'voice.wav')
+  body.append('language', language || 'en')
+  return api.post('/api/chat/transcribe', body, { timeout: 90000 }).then((r) => r.data)
+}
+
 function parseEvent(block) {
   let event = 'message'
   const dataLines = []

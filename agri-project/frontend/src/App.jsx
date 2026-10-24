@@ -19,6 +19,9 @@ import BookingRequests from './pages/BookingRequests'
 import MyTrips from './pages/MyTrips'
 import Notifications from './pages/Notifications'
 
+// Farmer/operator workflow pages (crops, markets, prices, trucks, tracking, bookings) are hidden from admins.
+const NON_ADMIN_ROLES = ['farmer', 'truck_operator', 'market_manager', 'buyer', 'marketer']
+
 function ProtectedLayout({ allowedRoles }) {
   const { isAuth, role } = useAuth()
   if (!isAuth) return <Navigate to="/login" replace />
@@ -48,15 +51,17 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route element={<ProtectedLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/crops" element={<Crops />} />
-              <Route path="/market-prices" element={<MarketPrices />} />
-              <Route path="/markets" element={<Markets />} />
-              <Route path="/trucks" element={<Trucks />} />
-              <Route path="/tracking" element={<Tracking />} />
-              <Route path="/bookings" element={<Bookings />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/chat" element={<Chat />} />
+            </Route>
+            <Route element={<ProtectedLayout allowedRoles={NON_ADMIN_ROLES} />}>
+              <Route path="/crops" element={<Crops />} />
+              <Route path="/markets" element={<Markets />} />
+              <Route path="/trucks" element={<Trucks />} />
+              <Route path="/market-prices" element={<MarketPrices />} />
+              <Route path="/tracking" element={<Tracking />} />
+              <Route path="/bookings" element={<Bookings />} />
             </Route>
             <Route element={<ProtectedLayout allowedRoles={['truck_operator', 'admin']} />}>
               <Route path="/booking-requests" element={<BookingRequests />} />

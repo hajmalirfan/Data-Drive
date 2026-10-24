@@ -1,8 +1,9 @@
+import base64
 import json
 from datetime import datetime
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -39,6 +40,29 @@ OLLAMA_CHAT_URL = f"{OLLAMA_BASE_URL}/api/chat"
 OLLAMA_TAGS_URL = f"{OLLAMA_BASE_URL}/api/tags"
 
 MAX_HISTORY_MESSAGES = settings.AI_MAX_HISTORY_MESSAGES
+
+# Voice input: languages offered in the app (ISO code -> name for the transcription prompt).
+SPEECH_LANGUAGES = {
+    "en": "English",
+    "hi": "Hindi",
+    "ta": "Tamil",
+    "te": "Telugu",
+    "kn": "Kannada",
+    "ml": "Malayalam",
+    "mr": "Marathi",
+    "bn": "Bengali",
+    "gu": "Gujarati",
+    "pa": "Punjabi",
+}
+SPEECH_MIME_TYPES = {
+    "audio/wav", "audio/x-wav", "audio/wave", "audio/mpeg", "audio/mp3",
+    "audio/ogg", "audio/flac", "audio/aac", "audio/webm",
+}
+MAX_SPEECH_BYTES = 10 * 1024 * 1024
+NON_SPEECH_REPLIES = {
+    "music", "silence", "noise", "background noise", "no speech", "no speech detected",
+    "inaudible", "beep", "tone", "empty", "",
+}
 
 
 def _provider(value: str | None) -> str:
@@ -323,6 +347,75 @@ async def ai_status(_user: User = Depends(get_current_user)):
         detail=default.detail,
         providers=providers,
     )
+
+
+@router.post("/transcribe")
+async def transcribe(
+    audio: UploadFile = File(...),
+    language: str = Form("en"),
+    _user: User = Depends(get_current_user),
+):
+    """Speech-to-text for the chat box. Audio is sent to Gemini and not stored."""
+    _require_gemini_key()
+    mime = (audio.content_type or "").split(";")[0].strip().lower()
+    if mime not in SPEECH_MIME_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported audio format")
+    data = await audio.read(MAX_SPEECH_BYTES + 1)
+    if len(data) > MAX_SPEECH_BYTES:
+        raise HTTPException(status_code=413, detail="Recording is too long")
+    if len(data) < 1000:
+        raise HTTPException(status_code=400, detail="Recording is too short")
+
+    lang_code = (language or "en").split("-")[0].lower()
+    lang_name = SPEECH_LANGUAGES.get(lang_code, "English")
+    prompt = (
+        f"Transcribe this voice message. The speaker most likely speaks {lang_name}, "
+        "possibly mixed with English words. Write exactly what is said, in the native script "
+        "of the language actually spoken (English words may stay in Latin script). "
+        "Do not translate, summarise, answer or add any commentary. "
+        "If there is no clear speech, return an empty response."
+    )
+    payload = {
+        "contents": [{
+            "role": "user",
+            "parts": [
+                {"text": prompt},
+                {"inline_data": {"mime_type": mime, "data": base64.b64encode(data).decode("ascii")}},
+            ],
+        }],
+        "generationConfig": {"temperature": 0, "maxOutputTokens": 1024},
+    }
+    models = [settings.GEMINI_SPEECH_MODEL, settings.GEMINI_MODEL]
+    response = None
+    async with httpx.AsyncClient(timeout=httpx.Timeout(45.0, connect=5.0)) as client:
+        for model in dict.fromkeys(m for m in models if m):
+            try:
+                response = await client.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                    headers={"x-goog-api-key": settings.GEMINI_API_KEY},
+                    json=payload,
+                )
+            except httpx.HTTPError:
+                response = None
+                continue
+            # Busy / unavailable: try the next model.
+            if response.status_code not in (429, 500, 503, 504):
+                break
+    if response is None:
+        raise HTTPException(status_code=503, detail="Could not reach the speech service. Try again.")
+    if response.is_error:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Speech recognition failed (HTTP {response.status_code}).",
+        )
+    try:
+        text = _gemini_text(response.json()).strip()
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=502, detail="Speech service returned an invalid response")
+    # The model sometimes describes non-speech audio instead of returning nothing.
+    if text.strip("[]().* ").lower() in NON_SPEECH_REPLIES:
+        text = ""
+    return {"text": text, "language": lang_code}
 
 
 @router.get("/conversations", response_model=list[ConversationOut])

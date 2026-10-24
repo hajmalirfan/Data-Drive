@@ -1,10 +1,111 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Icon from '../components/Icons'
-import { fetchMe, updateProfile } from '../services/authService'
+import {
+  fetchMe,
+  updateProfile,
+  fetchMyDocuments,
+  fetchMyDocumentImage,
+  uploadMyDocument,
+  deleteMyDocument,
+} from '../services/authService'
 import './Profile.css'
 import { useLanguage } from '../context/LanguageContext'
+
+const DOCUMENT_SLOTS = [
+  { type: 'permit', labelKey: 'profile.docPermit', hintKey: 'profile.docPermitHint' },
+  { type: 'license_front', labelKey: 'profile.docLicenseFront', hintKey: 'profile.docLicenseFrontHint' },
+  { type: 'license_back', labelKey: 'profile.docLicenseBack', hintKey: 'profile.docLicenseBackHint' },
+]
+const MAX_DOCUMENT_MB = 5
+const ACCEPTED_IMAGES = 'image/jpeg,image/png,image/webp'
+
+// pending: undefined (no change) | { file, url } (new image to upload) | 'remove'
+function DocumentSlot({ slot, doc, pending, disabled, onPick, onRemove }) {
+  const { t } = useLanguage()
+  const inputRef = useRef(null)
+  const [savedPreview, setSavedPreview] = useState('')
+  const [error, setError] = useState('')
+
+  // Load the stored image whenever the uploaded version changes.
+  useEffect(() => {
+    if (!doc) { setSavedPreview(''); return undefined }
+    let url = ''
+    let cancelled = false
+    fetchMyDocumentImage(slot.type)
+      .then((objectUrl) => {
+        url = objectUrl
+        if (cancelled) URL.revokeObjectURL(objectUrl)
+        else setSavedPreview(objectUrl)
+      })
+      .catch(() => !cancelled && setSavedPreview(''))
+    return () => {
+      cancelled = true
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [doc?.uploaded_at, slot.type])
+
+  const pick = (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setError('')
+    if (!ACCEPTED_IMAGES.split(',').includes(file.type)) { setError(t('profile.docErrType')); return }
+    if (file.size > MAX_DOCUMENT_MB * 1024 * 1024) { setError(t('profile.docErrSize', [MAX_DOCUMENT_MB])); return }
+    onPick(file)
+  }
+
+  const removed = pending === 'remove'
+  const preview = pending?.url || (removed ? '' : savedPreview)
+  const hasImage = Boolean(pending?.file) || (Boolean(doc) && !removed)
+  const state = pending ? 'pending' : doc ? 'ok' : ''
+
+  return (
+    <div className={`doc-slot ${hasImage ? 'has-doc' : ''} ${pending ? 'is-pending' : ''}`}>
+      <div className="doc-slot-head">
+        <strong>{t(slot.labelKey)}</strong>
+        <span className={`doc-slot-state ${state}`}>
+          {pending
+            ? (removed ? t('profile.docWillRemove') : t('profile.docUnsaved'))
+            : doc ? <><Icon name="check" size={11} />{t('profile.docUploaded')}</> : t('profile.docMissing')}
+        </span>
+      </div>
+
+      <button
+        type="button"
+        className="doc-slot-preview"
+        onClick={() => (preview ? window.open(preview, '_blank', 'noopener') : inputRef.current?.click())}
+        disabled={disabled}
+        aria-label={preview ? t('profile.docView') : t('profile.docUpload')}
+      >
+        {preview ? (
+          <img src={preview} alt={t(slot.labelKey)} />
+        ) : (
+          <span className="doc-slot-empty">
+            <Icon name="arrowUp" size={18} />
+            <span>{t(slot.hintKey)}</span>
+            <small>{t('profile.docFormats', [MAX_DOCUMENT_MB])}</small>
+          </span>
+        )}
+      </button>
+
+      {error && <p className="doc-slot-error" role="alert">{error}</p>}
+
+      <div className="doc-slot-actions">
+        <input ref={inputRef} type="file" accept={ACCEPTED_IMAGES} hidden onChange={pick} />
+        <button type="button" className="ui-btn ui-btn-outline ui-btn-sm" onClick={() => inputRef.current?.click()} disabled={disabled}>
+          <Icon name="arrowUp" size={13} />{hasImage ? t('profile.docReplace') : t('profile.docUpload')}
+        </button>
+        {hasImage && (
+          <button type="button" className="ui-btn ui-btn-soft ui-btn-sm doc-slot-remove" onClick={onRemove} disabled={disabled}>
+            <Icon name="trash" size={13} />{t('profile.docRemove')}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
 
 const ROLE_HINTS = {
   farmer: 'profile.hintFarmer',
@@ -31,6 +132,58 @@ export default function Profile() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [docs, setDocs] = useState({})
+  const [docsLoading, setDocsLoading] = useState(false)
+  const [pendingDocs, setPendingDocs] = useState({})
+  const [editing, setEditing] = useState(false)
+  const isOperator = (profile?.role || user?.role) === 'truck_operator'
+
+  useEffect(() => {
+    if (!isOperator) return
+    setDocsLoading(true)
+    fetchMyDocuments()
+      .then((list) => setDocs(Object.fromEntries(list.map((doc) => [doc.doc_type, doc]))))
+      .catch((err) => setError(err.response?.data?.detail || t('profile.docErrLoad')))
+      .finally(() => setDocsLoading(false))
+  }, [isOperator])
+
+  const setPendingDoc = (type, value) => setPendingDocs((prev) => {
+    if (prev[type]?.url) URL.revokeObjectURL(prev[type].url)
+    const next = { ...prev }
+    // Removing a picked-but-unsaved image just undoes the pick.
+    if (value === 'remove' && !docs[type]) delete next[type]
+    else next[type] = value
+    return next
+  })
+
+  const clearPendingDocs = () => setPendingDocs((prev) => {
+    Object.values(prev).forEach((value) => value?.url && URL.revokeObjectURL(value.url))
+    return {}
+  })
+
+  // Upload/delete staged documents; returns the number that failed.
+  const savePendingDocs = async () => {
+    let failed = 0
+    const next = { ...docs }
+    const remaining = {}
+    for (const [type, value] of Object.entries(pendingDocs)) {
+      try {
+        if (value === 'remove') {
+          await deleteMyDocument(type)
+          delete next[type]
+        } else {
+          next[type] = await uploadMyDocument(type, value.file)
+          URL.revokeObjectURL(value.url)
+        }
+      } catch {
+        failed += 1
+        remaining[type] = value
+      }
+    }
+    setDocs(next)
+    setPendingDocs(remaining)
+    return failed
+  }
 
   useEffect(() => {
     fetchMe()
@@ -70,7 +223,13 @@ export default function Profile() {
       })
       setProfile(updated)
       updateUser(updated)
-      setNotice(t('profile.profileSaved'))
+      const failedDocs = role === 'truck_operator' ? await savePendingDocs() : 0
+      if (failedDocs) {
+        setError(t('profile.docErrUpload'))
+      } else {
+        setNotice(t('profile.profileSaved'))
+        setEditing(false)
+      }
     } catch (err) {
       setError(err.response?.data?.detail || t('profile.saveError'))
     } finally {
@@ -139,13 +298,21 @@ export default function Profile() {
 
         <div className="profile-main">
           <section className="ui-card">
-            <div className="ui-card-head">
+            <button
+              type="button"
+              className={`ui-card-head profile-edit-toggle ${editing ? 'open' : ''}`}
+              onClick={() => { setEditing((open) => !open); setNotice('') }}
+              aria-expanded={editing}
+              aria-controls="profile-edit-body"
+            >
               <div>
                 <h3><Icon name="edit" size={16} />{t('profile.editProfile')}</h3>
                 <p>{t('profile.editSubtitle')}</p>
               </div>
-            </div>
-            <div className="ui-card-body">
+              <span className="profile-edit-chevron"><Icon name="chevronDown" size={16} /></span>
+            </button>
+            {editing && (
+            <div className="ui-card-body" id="profile-edit-body">
               <form className="profile-form" onSubmit={submit}>
                 <label className="ui-field">
                   <span className="ui-label">{t('profile.fullName')}</span>
@@ -218,20 +385,50 @@ export default function Profile() {
                       />
                       <span className="ui-hint">{t('common.quantityKg')}</span>
                     </label>
+                    <div className="profile-docs">
+                      <div className="profile-docs-head">
+                        <strong><Icon name="shield" size={14} />{t('profile.docTitle')}</strong>
+                        <span>{t('profile.docSubtitle')}</span>
+                      </div>
+                      {docsLoading ? (
+                        <p className="ui-hint">{t('common.loading')}</p>
+                      ) : (
+                        <div className="doc-grid">
+                          {DOCUMENT_SLOTS.map((slot) => (
+                            <DocumentSlot
+                              key={slot.type}
+                              slot={slot}
+                              doc={docs[slot.type]}
+                              pending={pendingDocs[slot.type]}
+                              disabled={saving}
+                              onPick={(file) => setPendingDoc(slot.type, { file, url: URL.createObjectURL(file) })}
+                              onRemove={() => setPendingDoc(slot.type, 'remove')}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
                 <div className="profile-form-actions">
                   <button
                     type="button"
                     className="ui-btn ui-btn-outline"
-                    onClick={() => setForm({
-                      full_name: profile?.full_name || '',
-                      phone: profile?.phone || '',
-                      location: profile?.location || '',
-                      vehicle_type: profile?.vehicle_type || '',
-                      vehicle_number: profile?.vehicle_number || '',
-                      vehicle_capacity_kg: profile?.vehicle_capacity_kg?.toString() || '',
-                    })}
+                    onClick={() => {
+                      setForm({
+                        full_name: profile?.full_name || '',
+                        phone: profile?.phone || '',
+                        location: profile?.location || '',
+                        vehicle_type: profile?.vehicle_type || '',
+                        vehicle_number: profile?.vehicle_number || '',
+                        vehicle_capacity_kg: profile?.vehicle_capacity_kg?.toString() || '',
+                      })
+                      clearPendingDocs()
+                      setError('')
+                      setNotice('')
+                      setEditing(false)
+                    }}
+                    disabled={saving}
                   >
                     Reset
                   </button>
@@ -241,8 +438,8 @@ export default function Profile() {
                 </div>
               </form>
             </div>
+            )}
           </section>
-
         </div>
       </div>
     </div>
