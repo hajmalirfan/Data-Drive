@@ -43,8 +43,7 @@ async function translateBatch(texts, target) {
   return texts
 }
 
-async function translateAll(target) {
-  const entries = Object.entries(MESSAGES)
+async function translateAll(target, entries) {
   const output = {}
   let index = 0
   while (index < entries.length) {
@@ -73,19 +72,23 @@ const result = { en: MESSAGES }
 for (const language of LANGUAGES) {
   if (language.code === 'en') continue
   const cacheFile = new URL(`${language.code}.json`, CACHE_DIR)
+  let cached = {}
   try {
-    const cached = JSON.parse(await readFile(cacheFile, 'utf8'))
-    if (cached && Object.keys(cached).length === Object.keys(MESSAGES).length) {
-      console.log(`Using cached ${language.label}`)
-      result[language.code] = cached
-      continue
-    }
+    cached = JSON.parse(await readFile(cacheFile, 'utf8'))
   } catch {
     // No cache yet.
   }
-  console.log(`Translating ${language.label}...`)
-  result[language.code] = await translateAll(language.code)
-  await writeFile(cacheFile, JSON.stringify(result[language.code], null, 2), 'utf8')
+  const missing = Object.entries(MESSAGES).filter(([key]) =>
+    typeof cached[key] !== 'string' || !cached[key].trim()
+  )
+  if (missing.length) {
+    console.log(`Translating ${missing.length} missing messages for ${language.label}...`)
+    Object.assign(cached, await translateAll(language.code, missing))
+    await writeFile(cacheFile, JSON.stringify(cached, null, 2), 'utf8')
+  } else {
+    console.log(`Using cached ${language.label}`)
+  }
+  result[language.code] = cached
 }
 
 const sortKeys = (source, target) => {

@@ -1,601 +1,651 @@
 # SmartAg Ops Advisor — Master Document
 
-| | |
-|---|---|
-| **Product** | SmartAg Ops Advisor ("AgriSave AI" assistant) |
-| **Version** | 1.0 (October 2026) |
-| **Repository** | `Data-Drive/agri-project` (backend + frontend) |
-| **Companion documents** | [`SECURITY.md`](../SECURITY.md) — security policy |
-
-This is the single reference for what the application does, how it is built, how
-to run and deploy it, and how to operate it. It is written for the project team,
-new developers, reviewers and anyone deploying the system.
-
----
+This document describes the application as implemented in the repository. It is
+intended for developers, reviewers, operators, and deployers. Configuration
+examples use placeholders; credentials belong in local environment files or a
+secret manager, never in this document.
 
 ## Contents
 
 1. [Executive summary](#1-executive-summary)
-2. [Problem and goals](#2-problem-and-goals)
-3. [Users and roles](#3-users-and-roles)
-4. [Feature catalogue](#4-feature-catalogue)
-5. [Key user journeys](#5-key-user-journeys)
-6. [System architecture](#6-system-architecture)
-7. [Technology stack](#7-technology-stack)
-8. [Repository structure](#8-repository-structure)
-9. [Data model](#9-data-model)
-10. [Business rules](#10-business-rules)
-11. [API reference](#11-api-reference)
-12. [AI assistant and voice input](#12-ai-assistant-and-voice-input)
-13. [Security summary](#13-security-summary)
-14. [Configuration](#14-configuration)
-15. [Local setup](#15-local-setup)
-16. [Deployment](#16-deployment)
-17. [Operations and monitoring](#17-operations-and-monitoring)
-18. [Quality and testing](#18-quality-and-testing)
-19. [Known limitations and roadmap](#19-known-limitations-and-roadmap)
-20. [Glossary](#20-glossary)
-
----
+2. [Product scope and roles](#2-product-scope-and-roles)
+3. [Architecture](#3-architecture)
+4. [Repository map](#4-repository-map)
+5. [User-facing features](#5-user-facing-features)
+6. [Data model](#6-data-model)
+7. [API reference](#7-api-reference)
+8. [Configuration reference](#8-configuration-reference)
+9. [Local development](#9-local-development)
+10. [Data and external services](#10-data-and-external-services)
+11. [Security and operations](#11-security-and-operations)
+12. [Build and validation](#12-build-and-validation)
+13. [Known constraints and maintenance notes](#13-known-constraints-and-maintenance-notes)
 
 ## 1. Executive summary
 
-SmartAg Ops Advisor helps small farmers sell their harvest at the most profitable
-market (*mandi*) and move it there on shared trucks. A farmer records their crop
-stock, compares markets by **net proceeds after transport, labour, commission and
-packaging**, books spare capacity on a truck, and tracks the trip live. Truck
-operators publish their vehicles, accept bookings and share location during trips.
-Administrators manage users, review driver documents and monitor platform health.
-An agriculture-only AI assistant answers farming questions in ten Indian languages,
-by text or voice.
+SmartAg Ops Advisor is a web application for Indian agricultural operations. It
+helps users manage crop stock, assess local and government-reported mandi prices,
+estimate the net return from selling at different markets, arrange truck
+transport, coordinate bookings, and track deliveries. It also provides
+administrative controls, document handling, reports, notifications, and an
+agriculture-focused multilingual assistant.
 
-## 2. Problem and goals
+The application has two separate market-price concepts:
 
-**Problem.** Farmers usually sell at the nearest mandi because comparing prices and
-arranging transport is hard. The highest headline price is often not the best
-deal once transport and market costs are paid, and hiring a full truck for a small
-load is expensive.
+1. **App-recorded prices** are manager-entered prices associated with the
+   application's own market records. These are stored in rupees per kilogram and
+   are used by the existing market comparison workflow.
+2. **Government mandi prices** are imported from a dataset or the data.gov.in
+   Agmarknet feed. These are stored and presented as published in rupees per
+   quintal. They power the government price board and the market finder.
 
-**Goals**
+These feeds are distinct and should not be combined without an explicit unit and
+data-source conversion.
 
-| # | Goal | How the app delivers it |
-|---|---|---|
-| G1 | Sell where the farmer earns the most | Market comparison by net proceeds, using recorded prices and real costs |
-| G2 | Cheaper transport | Shared trucks: book only the capacity needed |
-| G3 | Trust and visibility | Live trip tracking, booking status timeline, delivery records |
-| G4 | Accessible to rural users | 10 languages, voice input, mobile-first layout |
-| G5 | Safe operation | Role-based access, admin MFA, audit logging, security policy |
+## 2. Product scope and roles
 
-## 3. Users and roles
+### Roles
 
-| Role | Who | Can sign up publicly | Main capabilities |
-|---|---|---|---|
-| **Farmer** | Grower selling produce | Yes | Crop stock, market comparison, truck booking, tracking, reports, AI assistant |
-| **Truck Operator** | Owner/driver of a truck | Yes | Fleet management, booking requests, trips, location sharing, driver documents |
-| **Market Price Manager** | Mandi staff | No (assigned by admin) | Publish time-stamped market prices |
-| **Buyer / General Public** | Traders, visitors | No (assigned by admin) | View prices and markets |
-| **Admin** | Platform operator | No (provisioned from configuration) | User management, role changes, user removal, document review, platform dashboard |
+The application recognizes the following role identifiers:
 
-`marketer` exists as a legacy role and is treated like a buyer.
+| Role | Main purpose |
+| --- | --- |
+| `farmer` | Maintain crop stock, compare markets, find mandi options, book transport, and track deliveries. |
+| `truck_operator` | Maintain truck listings, respond to booking requests, manage trips, and share trip locations. |
+| `market_manager` | Publish app-recorded crop prices for markets. |
+| `buyer` | Use the market and produce workflows available to non-admin users. |
+| `marketer` | Use the market and produce workflows available to non-admin users. |
+| `admin` | Manage users, review operational metrics, and administer data such as mandi-feed synchronization. |
 
-### What each role sees in the menu
+Public signup is restricted to farmer and truck-operator roles. Other roles are
+assigned by an administrator. Backend authorization is authoritative; frontend
+route and navigation restrictions are supplementary user-interface controls.
 
-| Page | Farmer | Truck Operator | Price Manager / Buyer | Admin |
-|---|:-:|:-:|:-:|:-:|
-| Dashboard | Farmer dashboard | Operator dashboard | Farmer dashboard | **Admin dashboard** |
-| My Crops | ✓ | | | |
-| Market Prices | ✓ | | ✓ | |
-| Find Markets | ✓ | | ✓ | |
-| Truck Booking / My trucks | ✓ (book) | ✓ (manage) | | |
-| Live Tracking | ✓ | ✓ | | |
-| My Bookings | ✓ | | | |
-| Booking Requests, My Trips, Notifications | | ✓ | | |
-| Reports | ✓ | | ✓ (price manager) | ✓ |
-| AI Assistant | ✓ | ✓ | ✓ | ✓ |
-| Profile | ✓ | ✓ (+ vehicle & documents) | ✓ | ✓ |
-| Admin (users) | | | | ✓ |
+### Core journeys
 
-Menu visibility is a convenience; every rule is also enforced by the backend.
+**Farmer selling workflow**
 
-## 4. Feature catalogue
+1. Create or update crop stock, including quantity, pickup location, and optional
+   production cost.
+2. Review app-recorded market prices and compare estimated net proceeds, or use
+   the government mandi board and market finder.
+3. Select a truck and submit a booking for a destination market.
+4. Follow booking status and trip location, then review recorded delivery and
+   reporting information.
 
-### 4.1 Accounts and access
-- Sign up with email (or mobile) as Farmer or Truck Operator.
-- Sign in with email or mobile number and password.
-- **Admin two-step sign-in**: after the password, a 6-digit code is emailed (Mailtrap).
-- Forgot password: emailed one-time code → verify → set a new password.
-- Account lockout after 5 wrong passwords (15 minutes).
-- Profile editing; truck operators also store vehicle type, number and capacity.
+**Truck-operator workflow**
 
-### 4.2 Farmer
-- **Dashboard**: crop stock, best nearby price, available trucks, estimated net profit,
-  nearby markets map, market comparison, latest prices, available trucks.
-- **My Crops**: add/edit/close crop listings (crop, variety, quantity, grade,
-  harvest date, pickup location, cost per kg, status).
-- **Market Prices → Government mandi prices** (default tab): official Agmarknet
-  prices (data.gov.in) exactly as published — min, max and modal price per quintal
-  plus ₹/kg, by state, district, market, commodity, variety and grade, with the
-  source and arrival date shown. Loaded from CSV files in `dataset/` (or the
-  data.gov.in API), refreshed automatically, 30 days of history kept.
-- **Market Prices → Recorded by managers**: manager-entered price board with
-  highest/average price and staleness (older than 48 h).
-- **Find Markets (market finder)**: for a crop and quantity, compares government
-  mandi prices across markets after **real road distance** (OSRM) and every cost,
-  from the farmer's GPS position, a typed village/town, a point tapped on the map,
-  or the crop's pickup location. Shows four picks — **Best profit** (most money in
-  hand, recommended), **Best crop price**, **Nearest**, **Quickest trip** — a ranked
-  list, a Leaflet map with the road route, and a full cost breakdown. Transport uses
-  the cheapest truck listed in the app that can carry the load (base fare + ₹/km).
-  Market locations come from OpenStreetMap (district centre, marked approximate,
-  when the exact market is not found or is a same-name place elsewhere).
-- **Market comparison**: net proceeds per market for a crop and quantity (§10.3).
-- **Truck Booking**: browse shared trucks by free capacity and route; book capacity.
-- **My Bookings**: booking list with status tabs, details, cancellation, recorded sale.
-- **Live Tracking**: trip map (small view with Google-Maps-style full screen,
-  map/satellite switch), status timeline, last reported location.
-- **Reports**: stock, sales and transport performance.
+1. Register a truck and its capacity, fare, and availability.
+2. Review and accept or reject booking requests.
+3. Progress accepted trips through pickup, transit, and delivery statuses.
+4. Share location for active deliveries.
 
-### 4.3 Truck operator
-- **Operator dashboard**: pending requests, active trips, available trucks, completed trips.
-- **My trucks**: add trucks with capacity, route, pricing (base fare + per km),
-  availability date, passenger seat.
-- **Booking Requests**: accept or reject farmer requests.
-- **My Trips**: move trips through assigned → picked up → in transit → delivered.
-- **Location sharing**: with the farmer's consent, report GPS position during a trip.
-- **Driver documents**: upload vehicle permit and both sides of the driving licence
-  (inside "Edit profile"; saved with *Save changes*).
+**Administrator workflow**
 
-### 4.4 Market price manager
-- Publish crop prices per market with source and observation time.
+1. Review application overview metrics and user accounts.
+2. Assign roles or remove accounts subject to safeguards.
+3. Review users' uploaded verification documents.
+4. Check mandi-data synchronization status and request a synchronization run.
 
-### 4.5 Admin
-- **Admin dashboard**: total users, farmers, truck operators, AI chat users;
-  users-by-role chart; AI chatbot usage chart; application request monitor
-  (requests, average response time, 4xx and 5xx errors) for 24 h / 7 d / 30 d.
-- **User management**: search and filter users, change roles, remove users
-  (with confirmation; removes their data — §10.6).
-- **Driver document review** via API (`/api/auth/users/{id}/documents`).
+## 3. Architecture
 
-### 4.6 Shared
-- **AI Assistant ("AgriSave AI")**: farming-only answers, conversation history,
-  Gemini (cloud) or Ollama (local) model switch, streaming replies.
-- **Voice input**: microphone button; speech transcribed in the selected language.
-- **10 languages**: English, Hindi, Tamil, Telugu, Kannada, Malayalam, Marathi,
-  Bengali, Gujarati, Punjabi.
-- **Notifications** and **global search** (crops, markets, trucks).
+### Components
 
-## 5. Key user journeys
+| Component | Implementation | Responsibility |
+| --- | --- | --- |
+| Web client | React 18, Vite, React Router, Axios | Authenticated application interface, forms, maps, charts, and localization. |
+| API | Python, FastAPI, Pydantic, SQLAlchemy | Authentication, access control, domain rules, integrations, and JSON APIs. |
+| Relational database | SQLAlchemy-supported database; PostgreSQL is the documented deployment choice; SQLite connection support is present | User, operational, conversation, mandi, cache, and metrics persistence. |
+| Map display | Leaflet and React Leaflet | Interactive market and trip maps. |
+| AI assistant | Gemini API or a locally reachable Ollama service | Text responses; Gemini is also used for speech transcription. |
+| Price feed | Local CSV dataset or data.gov.in Agmarknet resource | Government mandi-price import. |
+| Geospatial services | OpenStreetMap Nominatim and public OSRM route service | Geocoding and road distance/time estimates for market finder. |
+| Email | Mailtrap Email Sending API with optional SMTP fallback | OTP delivery for admin sign-in and password recovery. |
 
-### 5.1 Farmer sells a harvest
+### Request and authentication flow
 
-```mermaid
-sequenceDiagram
-    actor F as Farmer
-    participant App as SmartAg
-    actor O as Truck operator
-    F->>App: Add crop stock (500 kg tomato)
-    F->>App: Compare markets (crop, quantity)
-    App-->>F: Net proceeds per mandi, recommended market
-    F->>App: Book truck capacity to that market
-    App-->>O: Notification: new booking request
-    O->>App: Accept, assign, mark picked up
-    O->>App: Share live location (with consent)
-    App-->>F: Live tracking map and status
-    O->>App: Mark delivered
-    F->>App: Record actual sale (quantity, price, expenses)
-    App-->>F: Net realised, reports updated
-```
+The browser client calls the API through the Axios service in
+`agri-project/frontend/src/services/api.js`. The backend base URL is configured
+by `VITE_API_URL`; the API base URL defaults to `http://localhost:8000` for
+local frontend development. After authentication, the client stores the bearer
+token and current user in browser local storage and sends the token in the
+`Authorization` header. The backend resolves the current user from the signed
+token and applies role checks on protected operations.
 
-### 5.2 Admin signs in
+The frontend is a single-page application with route guards in `App.jsx`. The
+backend is the source of truth for identity and authorization. Do not treat
+hidden navigation items or frontend route guards as security boundaries.
 
-1. Enter admin email and password on the normal sign-in page.
-2. A 6-digit code is emailed; enter it (10-minute expiry, 5 attempts, resend after 60 s).
-3. Land on the admin dashboard.
+### Startup behavior
 
-## 6. System architecture
+The FastAPI application is created in `backend/app/main.py`. At process import
+and startup it:
 
-```mermaid
-flowchart LR
-    subgraph Browser
-        UI[React SPA<br/>Vite build]
-    end
-    subgraph Backend[FastAPI backend]
-        API[REST API + SSE streaming]
-        SEC[Security policy<br/>headers · rate limits · audit]
-        MET[Request metrics<br/>hourly counters]
-    end
-    DB[(PostgreSQL<br/>Neon, TLS)]
-    GEM[Google Gemini API<br/>chat + speech-to-text]
-    OLL[Ollama<br/>optional local LLM]
-    MAIL[Mailtrap<br/>OTP email]
-    OSM[OpenStreetMap / Esri<br/>map tiles]
+- Registers SQLAlchemy models and creates missing tables with
+  `Base.metadata.create_all`.
+- Runs lightweight compatibility changes for selected earlier schemas.
+- Attempts configured default-admin initialization.
+- Validates production security configuration.
+- Installs CORS, response security headers, request metrics, and the background
+  mandi synchronization scheduler.
+- Registers the API routers and health endpoints.
 
-    UI -- HTTPS JSON, Bearer JWT --> API
-    API --- SEC
-    API --- MET
-    API -- SQLAlchemy --> DB
-    API -- HTTPS --> GEM
-    API -- HTTP --> OLL
-    API -- HTTPS --> MAIL
-    UI -- tiles --> OSM
-```
+The current schema setup is not a versioned migration framework. See
+[known constraints](#13-known-constraints-and-maintenance-notes) before deploying
+schema-changing updates to an existing production database.
 
-- **Frontend**: single-page React app. Talks to the API with a JWT in the
-  `Authorization` header; streams AI replies over Server-Sent Events.
-- **Backend**: stateless FastAPI app. Tables are created/migrated on startup.
-- **Database**: PostgreSQL (hosted on Neon). Images (driver documents) are stored
-  in the database.
-- **External services**: Gemini (AI chat and voice transcription), Mailtrap (OTP
-  emails), map tile providers. Ollama is an optional local alternative for chat.
+## 4. Repository map
 
-## 7. Technology stack
-
-| Layer | Technology |
-|---|---|
-| Frontend | React 18, React Router 6, Vite 5, Axios, Leaflet + React-Leaflet, plain CSS |
-| Backend | Python 3.12, FastAPI 0.115, Uvicorn, SQLAlchemy 2, Pydantic 2 |
-| Auth | python-jose (JWT HS256), passlib + bcrypt |
-| Database | PostgreSQL (Neon serverless), psycopg2 |
-| AI | Google Gemini (`gemini-flash-latest` chat, `gemini-flash-lite-latest` speech), Ollama (`llama3.2:3b`, optional) |
-| Email | Mailtrap Email Sending API (SMTP fallback supported) |
-| Maps | OpenStreetMap tiles, Esri World Imagery (satellite) |
-
-## 8. Repository structure
-
-```
-Data-Drive/
-├── SECURITY.md                 Security policy
-├── docs/MASTER_DOCUMENT.md     This document
+```text
+.
+├── README.md
+├── SECURITY.md
+├── LICENSE
+├── docs/
+│   └── MASTER_DOCUMENT.md
+├── dataset/
+│   └── tamil_nadu_tomato_mandi.csv
 └── agri-project/
     ├── backend/
-    │   ├── .env / .env.example Configuration (never commit .env)
     │   ├── requirements.txt
     │   └── app/
-    │       ├── main.py          App setup, CORS, migrations, routers
-    │       ├── core/            config, database, security (JWT, hashing, OTP),
-    │       │                    security_policy, metrics, email, db_init
-    │       ├── models/          SQLAlchemy tables
-    │       ├── schemas/         Pydantic request/response models
-    │       └── routers/         auth, admin, documents, chat, crops,
-    │                            markets, trucks, bookings, dashboard
+    │       ├── core/       # settings, DB, email, security, geo, sync, metrics
+    │       ├── models/     # SQLAlchemy entities
+    │       ├── routers/    # HTTP endpoints and domain workflows
+    │       └── schemas/    # Pydantic request/response models
     └── frontend/
-        ├── vite.config.js       Dev server, security headers, build CSP
-        ├── scripts/             Translation generation
+        ├── package.json
+        ├── vite.config.js
         └── src/
-            ├── App.jsx          Routes and role guards
-            ├── components/      AppShell, TripMap, LineChart, Modal, Icons …
-            ├── context/         AuthContext, LanguageContext
-            ├── hooks/           useVoiceInput
-            ├── i18n/            messages.js (English source), translations.js
-            ├── pages/           One file (+ CSS) per page
-            ├── services/        API clients
-            └── utils/           dates, password policy
+            ├── components/ # shared shell, maps, charts, dialogs
+            ├── context/    # authentication and language state
+            ├── hooks/      # browser interaction hooks
+            ├── i18n/       # generated translations and message catalog
+            ├── pages/      # route-level UI
+            ├── services/   # API clients
+            ├── styles/
+            └── utils/
 ```
 
-## 9. Data model
+Main backend files:
 
-```mermaid
-erDiagram
-    USERS ||--o{ CROP_STOCKS : owns
-    USERS ||--o{ TRUCKS : operates
-    USERS ||--o{ BOOKINGS : "books (farmer)"
-    USERS ||--o{ NOTIFICATIONS : receives
-    USERS ||--o{ CHAT_CONVERSATIONS : has
-    USERS ||--o{ USER_DOCUMENTS : uploads
-    USERS ||--o{ MARKET_PRICES : records
-    CHAT_CONVERSATIONS ||--o{ CHAT_MESSAGES : contains
-    MARKETS ||--o{ MARKET_PRICES : has
-    MARKETS ||--o{ BOOKINGS : destination
-    TRUCKS ||--o{ BOOKINGS : carries
-    CROP_STOCKS ||--o{ BOOKINGS : "shipped in"
+- `backend/app/main.py`: application setup, middleware, startup and router
+  registration.
+- `backend/app/core/config.py`: typed settings loaded from the environment and
+  `backend/.env`.
+- `backend/app/core/database.py`: SQLAlchemy engine, session factory, and
+  dependency.
+- `backend/app/core/security.py` and `security_policy.py`: password/JWT helpers,
+  access checks, request protections, headers, and production checks.
+- `backend/app/core/mandi_sync.py`: dataset/API import and scheduled refresh.
+- `backend/app/core/geo.py`: Nominatim geocoding and OSRM route caching.
+
+Main frontend files:
+
+- `frontend/src/App.jsx`: route definitions and role-gated layouts.
+- `frontend/src/components/AppShell.jsx`: authenticated navigation and page
+  shell.
+- `frontend/src/context/AuthContext.jsx`: client-side auth state.
+- `frontend/src/context/LanguageContext.jsx`: language selection and translation
+  lookup.
+- `frontend/src/services/`: API wrappers for authentication, operations, chat,
+  and mandi/market-finder features.
+- `frontend/src/pages/`: login, dashboard, crops, market prices, markets,
+  bookings, tracking, reports, profile, chat, and administration screens.
+
+## 5. User-facing features
+
+### Authentication and profile
+
+- Email/password signup and sign-in.
+- Admin sign-in requires an emailed one-time code after password verification.
+- Forgot-password and OTP-based reset flow.
+- Profile data includes user details and operator vehicle-profile fields.
+- Administrator user management includes role updates and account removal.
+- User documents can be uploaded, viewed, and removed, with administrative
+  review access.
+
+### Crop stock and app-recorded market prices
+
+Farmers can create, update, list, and delete their own crop-stock records.
+Records can include a crop name, available quantity, pickup location, and
+production cost per kilogram.
+
+The existing market board stores manager-entered prices per kilogram. It
+provides latest-price and previous-price comparisons, trend percentages, stale
+price flags, and a market comparison endpoint. Its net-proceeds estimate applies
+the configured selling-loss, transport, loading, labour, commission, and
+packaging assumptions. If a crop's production cost is known, the estimate also
+includes estimated profit.
+
+The legacy comparison workflow uses the market record's configured distance
+and a standard transport rate. Its assumptions are returned by the API; these
+figures are estimates, not a transport quote or guaranteed sale outcome.
+
+### Government mandi board
+
+The government price board is backed by `MandiPrice`, not the app-recorded
+`MarketPrice` table. It supports:
+
+- Latest-date prices and filters for state, district, market, and commodity.
+- Text search and selectable sort order.
+- Pagination and summary counts/prices.
+- History for a selected state, market, and commodity.
+- A status view of the selected source and the latest synchronization.
+- Admin-triggered background synchronization.
+
+Published prices are kept in rupees per quintal. The included sample dataset is
+a Tamil Nadu tomato CSV snapshot. It is an input dataset, not a continuously
+updated feed.
+
+### Market finder
+
+The market finder combines the latest government modal prices for a commodity
+with the user's origin and estimated delivery costs. The user can provide
+coordinates or a place name; the service can also try a crop pickup location or
+the profile location. Coordinates are restricted to India.
+
+Market coordinates are resolved in the background and cached. The finder
+shortlists markets using straight-line distance and published price, then
+requests/caches road distance and duration for the shortlist. A suitable
+available truck in the app can supply the rate; otherwise the configured
+standard transport base and per-kilometre values are used. The result reports
+the cost breakdown, estimated net, and optional production-cost-based profit.
+Market location may fall back to an approximate district center when a precise
+market location cannot be established.
+
+This is a planning estimate based on the feed's available prices and public
+geospatial services. It is not a booking, quote, guarantee of price, or
+recommendation that replaces the user's judgment.
+
+### Trucks, bookings, delivery tracking, and reports
+
+Truck operators maintain fleet entries and availability; farmers can find
+trucks and request capacity. Booking records connect the farmer, truck,
+destination market, optional crop, quantity, status, and delivery information.
+The API enforces participant and role checks on list and update operations.
+Trip status and location updates are used by tracking pages and maps.
+
+Dashboard and report endpoints summarize operational records. Notifications
+can be listed and marked read individually or in bulk. Search provides a
+cross-feature lookup through the backend search endpoint.
+
+### Chat and voice input
+
+The AI assistant is intended for agriculture-related questions, persists user
+conversations and messages, and can stream responses. Conversation ownership is
+checked by the API. The assistant's system prompt constrains its subject matter,
+asks it not to invent prices/scheme/weather information, and requests concise
+answers in the selected language.
+
+The client can select Gemini or Ollama for text chat. Gemini requires
+`GEMINI_API_KEY`; Ollama requires the configured local service and model. Voice
+input is uploaded for Gemini transcription and is not the same as sending a
+voice response. Provider status is exposed through the chat API.
+
+### Languages and route-level screens
+
+The generated UI language catalog contains English, Hindi, Tamil, Telugu,
+Kannada, Malayalam, Marathi, Bengali, Gujarati, and Punjabi. The market-price
+board and market-finder controls, results, and map controls are included in
+those translations. Market, district, state, commodity, and variety names come
+from the source data and are not translated. External provider error details
+may also remain in English.
+
+Frontend routes include:
+
+| Route | Screen | Access |
+| --- | --- | --- |
+| `/login`, `/forgot-password` | Sign-in and password recovery | Public |
+| `/dashboard`, `/reports`, `/profile`, `/chat` | Main user workspace | Authenticated users |
+| `/crops`, `/markets`, `/market-prices`, `/trucks`, `/tracking`, `/bookings` | Farmer/market operations | Non-admin application roles |
+| `/booking-requests`, `/trips`, `/notifications` | Operator trip management | Truck operators; admin route guard also permits these routes |
+| `/admin` | Administration | Admin |
+
+The root route redirects to the dashboard for signed-in users and to login
+otherwise. Unknown paths redirect through the root route.
+
+## 6. Data model
+
+The SQLAlchemy model modules are registered at application startup. Principal
+tables include:
+
+| Entity/table | Purpose |
+| --- | --- |
+| `users` | Credentials, role, profile, vehicle profile, and authentication lock/session timestamps. |
+| `markets` | Application's operational markets and distance/ETA metadata. |
+| `crop_stocks` | User-owned crops, quantity, pickup details, and production-cost data. |
+| `market_prices` | Manager-entered per-kilogram market-price observations. |
+| `trucks` | Operator-owned vehicle, capacity, fare, and availability data. |
+| `bookings` | Farmer-to-truck transport requests, status, delivery, and location. |
+| `notifications` | Per-user operational notifications and read state. |
+| `user_documents` | Uploaded user verification documents and review metadata. |
+| `chat_conversations`, `chat_messages` | User-owned assistant conversations and messages. |
+| `password_reset_otps`, `admin_login_otps` | OTP state for password recovery and admin login. |
+| `mandi_prices`, `mandi_sync_runs` | Imported government prices and sync execution history. |
+| `geocode_cache`, `route_cache` | Cached geocodes and road-route results for market finder. |
+| `api_request_stats` | Aggregated API request metrics. |
+
+Operational entities use foreign keys for ownership and relationships. User
+records own crops, documents, and conversations; bookings reference farmers,
+trucks, and markets. Mandi data is stored separately from manager-entered
+market prices.
+
+## 7. API reference
+
+All API paths are relative to the backend origin. Unless described as a public
+authentication operation, endpoints require a bearer token. Role and ownership
+requirements are enforced by the backend. Request/response schemas and
+development OpenAPI docs are the definitive source for payload details.
+
+| Prefix/path | Methods and purpose |
+| --- | --- |
+| `/`, `/api/health` | `GET` service welcome and health status. |
+| `/api/auth` | Signup, login, admin login OTP verification/resend, forgot password, OTP verification, password reset, current-user read/update, admin user list/role update/delete. Also contains legacy role-check area endpoints. |
+| `/api/auth/me/documents` | `GET` list, `GET` by document type, `PUT` upload/replace, `DELETE` own documents. |
+| `/api/auth/users/{user_id}/documents` | Admin document-list and per-type review access. |
+| `/api/admin` | `GET /overview` administrator overview. |
+| `/api/crops` | `GET`, `POST`, `PATCH /{crop_id}`, `DELETE /{crop_id}` for crop stock. |
+| `/api/markets` | Market listing, individual market and market-price views, price listing/creation, price crop options, and `GET /compare`. |
+| `/api/mandi-prices` | `GET` price list; `GET /filters`, `/history`, `/status`; admin-only `POST /sync`. |
+| `/api/market-finder` | `GET /commodities`, `GET` market ranking, and `GET /route` for route estimates. |
+| `/api/trucks` | `GET` list/detail, `POST` create, `PATCH /{truck_id}` update, `DELETE /{truck_id}` delete. |
+| `/api/bookings` | `GET` list/detail, `POST` create, and `PATCH` status, delivery, and location updates. |
+| `/api` dashboard | `GET /dashboard`, `/reports/summary`, `/notifications`, `/search`; `PATCH` notification read and read-all actions. |
+| `/api/chat` | Provider status, voice transcription, conversation list/create/read/rename/delete, message submit, and streamed message submit. |
+
+The server provides `/docs`, `/redoc`, and `/openapi.json` outside production.
+These API documentation endpoints are disabled when `ENVIRONMENT=production`.
+
+## 8. Configuration reference
+
+The backend loads settings from environment variables and `backend/.env`.
+`backend/.env.example` is a template only. Keep the actual `.env` out of version
+control. The following names match the current settings model; empty defaults
+mean a value must be provided when the associated feature is used.
+
+### Runtime, database, and security
+
+| Variable | Purpose/current default |
+| --- | --- |
+| `APP_NAME` | API title; default `SmartAg Ops Advisor API`. |
+| `ENVIRONMENT` | `development`; set to `production` for stricter startup and transport behavior. |
+| `SECRET_KEY` | Signing/HMAC secret; replace the development placeholder with a strong random secret. |
+| `ALGORITHM` | JWT algorithm, currently `HS256`. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Token lifetime; default 1440 minutes. |
+| `DATABASE_URL` | SQLAlchemy connection URL; set to the deployed database. |
+| `FRONTEND_URL` | Allowed frontend origin; default `http://localhost:5173`. |
+| `PASSWORD_MIN_LENGTH` | Minimum password length; default 8. |
+| `LOGIN_MAX_FAILURES` | Failed login threshold; default 5. |
+| `LOGIN_LOCKOUT_MINUTES` | Lock duration after threshold; default 15 minutes. |
+| `MAX_REQUEST_BYTES` | Maximum request body; default 12 MiB. |
+| `SEED_DEMO_DATA` | Declared with default false, but no seeding behavior currently references it. |
+
+### Email and OTP
+
+| Variable | Purpose/current default |
+| --- | --- |
+| `ADMIN_EMAIL`, `ADMIN_DEFAULT_PASSWORD` | Optional first-admin provisioning values; defaults are empty. Configure securely if using startup provisioning. |
+| `ADMIN_NAME` | Initial admin display name; default `Admin`. |
+| `OTP_EXPIRE_MINUTES` | OTP lifetime; default 10 minutes. |
+| `OTP_RESEND_SECONDS` | Resend cooldown; default 60 seconds. |
+| `OTP_MAX_ATTEMPTS` | Verification attempts; default 5. |
+| `RESET_TOKEN_EXPIRE_MINUTES` | Password-reset token lifetime; default 15 minutes. |
+| `MAILTRAP_API_TOKEN` | Optional Mailtrap token; empty by default. |
+| `MAILTRAP_API_URL` | Mailtrap API URL. |
+| `MAILTRAP_FROM_EMAIL`, `MAILTRAP_FROM_NAME` | Mail sender identity. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Optional SMTP fallback. |
+| `SMTP_USE_TLS`, `SMTP_USE_SSL` | SMTP transport settings; defaults true and false respectively. |
+
+### AI
+
+| Variable | Purpose/current default |
+| --- | --- |
+| `GEMINI_API_KEY` | Gemini API credential; empty by default. |
+| `GEMINI_MODEL` | Text model; default `gemini-flash-latest`. |
+| `GEMINI_SPEECH_MODEL` | Voice transcription model; default `gemini-flash-lite-latest`. |
+| `GEMINI_TIMEOUT_SECONDS` | Gemini request timeout; default 180 seconds. |
+| `AI_MAX_OUTPUT_TOKENS` | Text response limit; default 200. |
+| `AI_MAX_HISTORY_MESSAGES` | Prior messages included in provider context; default 6. |
+| `AI_MAX_INPUT_CHARS` | Per-message text clipping limit; default 1200 characters. |
+| `OLLAMA_BASE_URL` | Local Ollama URL; default `http://127.0.0.1:11434`. |
+| `OLLAMA_MODEL` | Ollama model name; default `llama3.2:3b`. |
+| `OLLAMA_TIMEOUT_SECONDS` | Ollama timeout; default 120 seconds. |
+
+### Price calculation and mandi data
+
+| Variable | Purpose/current default |
+| --- | --- |
+| `TRANSPORT_RATE_PER_KM` | Standard transport rate; default 28.0. |
+| `LOADING_COST` | Standard base/loading cost; default 500.0. |
+| `MARKET_LOSS_PCT` | Assumed produce loss; default 2.0%. |
+| `LABOUR_COST_PER_KG` | Labour assumption; default 0.4. |
+| `COMMISSION_PCT` | Commission assumption; default 2.0%. |
+| `PACKAGING_COST_PER_KG` | Packaging/handling assumption; default 0.25. |
+| `STALE_PRICE_HOURS` | Age after which manager-entered prices are flagged stale; default 48 hours. |
+| `MANDI_SOURCE` | `dataset` (default) or `api`. |
+| `MANDI_DATASET_DIR` | Optional CSV folder; default is the repository-level `dataset/` directory. |
+| `DATA_GOV_API_KEY` | API key required when `MANDI_SOURCE=api`. |
+| `DATA_GOV_MANDI_RESOURCE` | data.gov.in resource identifier; default targets the Agmarknet price feed. |
+| `MANDI_SYNC_INTERVAL_HOURS` | Minimum interval between successful API syncs; default 6 hours. |
+| `MANDI_RETENTION_DAYS` | Rolling retention window counted back from the newest published date; default 30 days. |
+
+### Frontend
+
+| Variable | Purpose |
+| --- | --- |
+| `VITE_API_URL` | Backend origin used by the frontend; local example is `http://localhost:8000`. |
+
+Vite variables are embedded in the client build and must never contain server
+credentials.
+
+## 9. Local development
+
+### Requirements
+
+- Python 3.12 or a compatible Python version supported by the installed
+  dependencies.
+- Node.js 18 or newer and npm.
+- PostgreSQL for the documented database setup, or a compatible local database
+  URL for development.
+- Optional: Gemini key for Gemini assistant/transcription; Ollama installed and
+  running for local model use.
+
+### Backend
+
+From the repository root, in PowerShell:
+
+```powershell
+Set-Location agri-project\backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+Copy-Item .env.example .env
 ```
 
-| Table | Purpose | Key columns |
-|---|---|---|
-| `users` | Accounts and roles | email, phone, hashed_password, role, vehicle_*, failed_login_attempts, locked_until, password_changed_at |
-| `crop_stocks` | Farmer harvest listings | owner_id, crop_name, variety, quantity_kg, grade, harvest_date, pickup_location, cost_per_kg, status |
-| `markets` | Mandis | name, district, state, latitude, longitude, distance_km |
-| `market_prices` | Time-stamped prices | market_id, crop_name, price_per_kg, source, observed_at, created_by |
-| `trucks` | Shared vehicles | operator_id, vehicle_number, capacity_kg, available_capacity_kg, route_from/to, price_per_km, base_fare, status, last_lat/lng |
-| `bookings` | Transport bookings | farmer_id, truck_id, crop_id, market_id, quantity_kg, status, distance_km, eta_minutes, estimated costs, actual sale fields, location_consent, last_lat/lng |
-| `notifications` | In-app alerts | user_id, title, message, link, is_read |
-| `chat_conversations`, `chat_messages` | AI chat history | user_id, title / role (`user`, `assistant`), content |
-| `user_documents` | Driver permit and licence images | user_id, doc_type (`permit`, `license_front`, `license_back`), content_type, size, data |
-| `password_reset_otps`, `admin_login_otps` | One-time codes | email, otp_hash (HMAC), attempts, consumed, expires_at |
-| `api_request_stats` | Hourly API metrics | hour_start, requests, client_errors, server_errors, total_ms |
+Edit `backend/.env` with a database URL and a newly generated local
+`SECRET_KEY`. Set email, AI, or mandi-feed credentials only for features you
+intend to exercise. Create the database before starting the server.
 
-**Deletion rules** (enforced by the database): deleting a user cascades to their
-crops, bookings (as farmer), notifications, chats and documents; trucks and price
-records are kept with the user link set to empty.
+Run the API:
 
-## 10. Business rules
-
-### 10.1 Crop status
-`draft` → `available` → `reserved` / `partially_sold` → `sold` → `closed`.
-Only `available`, `reserved` and `partially_sold` count as stock.
-
-### 10.2 Booking lifecycle
-
-```mermaid
-stateDiagram-v2
-    [*] --> requested: farmer books
-    requested --> accepted: operator
-    requested --> rejected: operator
-    requested --> cancelled: farmer
-    accepted --> assigned: operator
-    assigned --> picked_up: operator
-    accepted --> picked_up: operator (skip assign)
-    accepted --> in_transit: operator
-    assigned --> in_transit: operator
-    picked_up --> in_transit: operator
-    in_transit --> delivered: operator
-    accepted --> cancelled: farmer
-    assigned --> cancelled: farmer
-    delivered --> [*]
-    rejected --> [*]
-    cancelled --> [*]
+```powershell
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-- Active statuses: `requested`, `accepted`, `assigned`, `picked_up`, `in_transit`.
-- Operators move bookings forward (they may skip `assigned` / `picked_up`) and can
-  reject new requests; farmers can only cancel, and only before pickup.
-- Location is shared only during `picked_up` / `in_transit` and only with the
-  farmer's consent.
-- After delivery the farmer records the actual sold quantity, price and expenses.
+The API is available at `http://127.0.0.1:8000`; development docs are at
+`http://127.0.0.1:8000/docs`.
 
-### 10.3 Market comparison (net proceeds)
+### Frontend
 
-For a crop quantity *Q* (kg) and a market with latest price *P* (₹/kg) at distance *D* (km):
+In another PowerShell terminal:
 
-| Step | Formula | Default setting |
-|---|---|---|
-| Saleable quantity | Q × (1 − loss %) | `MARKET_LOSS_PCT` = 2 % |
-| Gross revenue | saleable × P | |
-| Transport | D × rate + loading | `TRANSPORT_RATE_PER_KM` = ₹28, `LOADING_COST` = ₹500 |
-| Labour | Q × labour rate | `LABOUR_COST_PER_KG` = ₹0.40 |
-| Commission | gross × commission % | `COMMISSION_PCT` = 2 % |
-| Packaging | Q × packaging rate | `PACKAGING_COST_PER_KG` = ₹0.25 |
-| **Net proceeds** | gross − (transport + labour + commission + packaging) | |
-
-If the farmer entered a cost per kg, profit is also estimated. Prices older than
-`STALE_PRICE_HOURS` (48 h) are flagged as stale.
-
-### 10.4 Truck status
-`available`, `reserved`, `on_trip`, `maintenance`, `inactive`. Only `available`
-trucks are offered to farmers. A deleted operator's trucks become `inactive`.
-
-### 10.5 Account rules
-- Public sign-up: Farmer or Truck Operator only. Admins come from configuration
-  (`ADMIN_EMAIL`); other roles are assigned by an admin.
-- Passwords: 8+ characters with a letter and a number, not common, not the email name.
-- Admins cannot change their own role or remove themselves; the last admin cannot be removed.
-
-### 10.6 User removal
-Permanent. Removes the user and the data listed in §9; their sessions stop working.
-
-## 11. API reference
-
-Base URL: `http://localhost:8000` in development. All endpoints except sign-up,
-sign-in, password reset and health require `Authorization: Bearer <token>`.
-Interactive docs: `/docs` (development only).
-
-### Auth and users — `/api/auth`
-| Method | Path | Who | Purpose |
-|---|---|---|---|
-| POST | `/signup` | Public | Create Farmer / Truck Operator account |
-| POST | `/login` | Public | Sign in; admins receive an OTP challenge instead of a token |
-| POST | `/login/verify-otp` | Public | Admin: verify emailed code, get session |
-| POST | `/login/resend-otp` | Public | Admin: resend code |
-| POST | `/forgot-password` | Public | Email a reset code |
-| POST | `/verify-otp` | Public | Verify reset code, get reset token |
-| POST | `/reset-password` | Public | Set new password (signs out all sessions) |
-| GET / PATCH | `/me` | Signed in | Read / update own profile |
-| GET | `/users` | Admin | List users |
-| PATCH | `/users/{id}/role` | Admin | Change a user's role |
-| DELETE | `/users/{id}` | Admin | Remove a user and their data |
-
-### Driver documents — `/api/auth`
-| Method | Path | Who | Purpose |
-|---|---|---|---|
-| GET | `/me/documents` | Operator | List own documents |
-| GET / PUT / DELETE | `/me/documents/{type}` | Operator | View / upload / delete (`permit`, `license_front`, `license_back`) |
-| GET | `/users/{id}/documents[/{type}]` | Admin | Review a user's documents |
-
-### Farming operations — `/api`
-| Method | Path | Purpose |
-|---|---|---|
-| GET / POST | `/crops` | List / add crop stock |
-| PATCH / DELETE | `/crops/{id}` | Update / remove crop stock |
-| GET | `/markets`, `/markets/{id}` | Markets |
-| GET | `/markets/compare` | Net-proceeds comparison |
-| GET | `/markets/{id}/prices` | Price history |
-| GET / POST | `/prices` | List prices / publish price (price manager, admin) |
-| GET | `/prices/crops` | Crops that have prices |
-| GET / POST | `/trucks` | List / add trucks |
-| GET / PATCH / DELETE | `/trucks/{id}` | Truck detail / update / remove |
-| GET / POST | `/bookings` | List / create bookings |
-| GET | `/bookings/{id}` | Booking detail |
-| PATCH | `/bookings/{id}/status` | Change status (rules in §10.2) |
-| PATCH | `/bookings/{id}/delivery` | Record actual sale |
-| PATCH | `/bookings/{id}/location` | Report live location |
-| GET | `/dashboard` | Role dashboard data |
-| GET | `/reports/summary` | Reports |
-| GET / PATCH | `/notifications`, `/notifications/{id}/read`, `/notifications/read-all` | Notifications |
-| GET | `/search` | Global search |
-
-### Government mandi prices — `/api/mandi-prices`
-| Method | Path | Who | Purpose |
-|---|---|---|---|
-| GET | `/api/mandi-prices` | Signed in | Prices for the latest date (filters: `state`, `district`, `market`, `commodity`, `q`, `arrival_date`; `sort`; paging) |
-| GET | `/api/mandi-prices/filters` | Signed in | States, districts and commodities for the dropdowns |
-| GET | `/api/mandi-prices/history` | Signed in | Stored daily prices for one market and commodity |
-| GET | `/api/mandi-prices/status` | Signed in | Source, latest date, record count, last load |
-| POST | `/api/mandi-prices/sync` | Admin | Reload now from the configured source |
-
-Source settings: `MANDI_SOURCE` (`dataset` — CSV files in `dataset/` with columns
-`state, district, market, commodity, variety, grade, arrival_date (dd/mm/yyyy),
-min_price, max_price, modal_price`; or `api` — data.gov.in with `DATA_GOV_API_KEY`),
-`MANDI_DATASET_DIR`, `MANDI_SYNC_INTERVAL_HOURS`, `MANDI_RETENTION_DAYS`.
-
-### Market finder — `/api/market-finder`
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/api/market-finder?commodity=&quantity_kg=` (+ `lat`/`lng`, `place`, `crop_id`, `cost_per_kg`) | Ranked markets with road km, drive time, costs, money in hand, profit, and the four picks |
-| GET | `/api/market-finder/commodities` | Crops with government prices on the latest date |
-| GET | `/api/market-finder/route?o_lat=&o_lng=&d_lat=&d_lng=` | Road path for the map |
-
-Caches: `geocode_cache` (OpenStreetMap lookups) and `route_cache` (OSRM road
-distance/time). Markets are located in the background after each price import
-(1 lookup/second); routing is limited to a shortlist (20 nearest + 12 best-priced)
-with a 20-second budget per search — unfinished routes are cached for the next
-search and never estimated.
-
-### AI — `/api/chat`
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/status` | Which AI providers are available |
-| GET / POST | `/conversations` | List / start conversations |
-| GET / PATCH / DELETE | `/conversations/{id}` | Read / rename / delete |
-| POST | `/conversations/{id}/messages` | Ask (full reply) |
-| POST | `/conversations/{id}/messages/stream` | Ask (streamed reply, SSE) |
-| POST | `/transcribe` | Voice to text (multipart: `audio`, `language`) |
-
-### Admin and system
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/api/admin/overview?range=24h\|7d\|30d` | Admin dashboard data |
-| GET | `/api/health` | Health check |
-
-## 12. AI assistant and voice input
-
-- **Scope**: answers only farming topics (crops, soil, livestock, weather, mandi
-  prices, equipment, government schemes); declines other topics in one sentence;
-  never invents prices or schemes.
-- **Language**: replies in the user's selected app language.
-- **Providers**: Gemini (default, cloud) or Ollama (local, optional), chosen in the chat header.
-- **Limits**: answers ≈ 200 tokens, last 6 messages of history, 1,200-character input.
-- **Voice**: up to 60 seconds; the browser converts audio to 16 kHz WAV; the
-  backend sends it to Gemini (`gemini-flash-lite-latest`, falling back to the main
-  model when busy) and returns text in the native script without translating.
-  Audio is not stored. Typical latency 6–25 s depending on Gemini load.
-- **Rate limits**: 20 chat messages and 10 transcriptions per minute per client.
-
-## 13. Security summary
-
-Full policy: [`SECURITY.md`](../SECURITY.md). Highlights:
-
-- bcrypt password hashing, password policy, account lockout, admin email MFA.
-- JWT sessions (24 h) revoked on password reset; purpose tokens cannot be used as sessions.
-- Role checks on every protected endpoint; self-registration limited to two roles.
-- Per-IP rate limits on authentication, OTP and AI endpoints.
-- Security headers (CSP, frame denial, nosniff, referrer and permissions policy, HSTS in production).
-- Strict CORS, 12 MB request cap, validated uploads, parameterised SQL.
-- Audit log of security events; production mode refuses weak secrets and hides API docs.
-
-## 14. Configuration
-
-Backend settings come from `agri-project/backend/.env` (template: `.env.example`).
-
-| Group | Variables |
-|---|---|
-| Environment | `ENVIRONMENT` (`development` / `production`) |
-| Core | `SECRET_KEY`, `DATABASE_URL`, `FRONTEND_URL`, `ACCESS_TOKEN_EXPIRE_MINUTES` |
-| Security | `PASSWORD_MIN_LENGTH`, `LOGIN_MAX_FAILURES`, `LOGIN_LOCKOUT_MINUTES`, `MAX_REQUEST_BYTES` |
-| Admin | `ADMIN_EMAIL`, `ADMIN_DEFAULT_PASSWORD`, `ADMIN_NAME` |
-| AI | `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_SPEECH_MODEL`, `GEMINI_TIMEOUT_SECONDS`, `AI_MAX_OUTPUT_TOKENS`, `AI_MAX_HISTORY_MESSAGES`, `AI_MAX_INPUT_CHARS`, `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `OLLAMA_TIMEOUT_SECONDS` |
-| Costs | `TRANSPORT_RATE_PER_KM`, `LOADING_COST`, `MARKET_LOSS_PCT`, `LABOUR_COST_PER_KG`, `COMMISSION_PCT`, `PACKAGING_COST_PER_KG`, `STALE_PRICE_HOURS` |
-| OTP | `OTP_EXPIRE_MINUTES`, `OTP_RESEND_SECONDS`, `OTP_MAX_ATTEMPTS`, `RESET_TOKEN_EXPIRE_MINUTES` |
-| Email | `MAILTRAP_API_TOKEN`, `MAILTRAP_API_URL`, `MAILTRAP_FROM_EMAIL`, `MAILTRAP_FROM_NAME`, `SMTP_*` (fallback) |
-
-Frontend: `agri-project/frontend/.env` → `VITE_API_URL` (API base URL).
-
-## 15. Local setup
-
-**Prerequisites**: Python 3.12, Node.js 20+, a PostgreSQL database (local or Neon).
-
-```bash
-# Backend
-cd agri-project/backend
-python -m venv venv
-venv\Scripts\activate            # Windows  (macOS/Linux: source venv/bin/activate)
-pip install -r requirements.txt
-copy .env.example .env           # then fill in SECRET_KEY, DATABASE_URL, keys
-python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
-
-# Frontend (new terminal)
-cd agri-project/frontend
+```powershell
+Set-Location agri-project\frontend
 npm install
-copy .env.example .env           # VITE_API_URL=http://localhost:8000
-npm run dev                      # http://localhost:5173
+Copy-Item .env.example .env
+npm run dev
 ```
 
-On first start the backend creates all tables and the admin account from
-`ADMIN_EMAIL` / `ADMIN_DEFAULT_PASSWORD`. If no email provider is configured,
-OTP codes are printed in the backend console and shown in the UI (development only).
+Open `http://localhost:5173`. The frontend `.env.example` sets
+`VITE_API_URL=http://localhost:8000` for local development.
 
-## 16. Deployment
+### First administrator
 
-1. **Database**: PostgreSQL with TLS (`sslmode=require`), backups enabled.
-2. **Backend**: run `uvicorn app.main:app --host 0.0.0.0 --port 8000` behind an
-   HTTPS reverse proxy with **one worker** (rate limits and metrics are in memory),
-   `ENVIRONMENT=production`, a strong `SECRET_KEY`, and `FRONTEND_URL=https://…`.
-3. **Frontend**: `npm run build` with `VITE_API_URL=https://<api-host>`; serve
-   `dist/` over HTTPS with SPA fallback to `index.html` and the security headers
-   in `SECURITY.md` §6 (including `frame-ancestors 'none'`).
-4. **Secrets**: rotate every key that was ever shared; change the default admin password.
-5. Work through the checklist in `SECURITY.md` §13.
+Public signup cannot create an administrator. To provision the initial admin,
+set `ADMIN_EMAIL`, `ADMIN_DEFAULT_PASSWORD`, and optionally `ADMIN_NAME` in the
+backend environment before startup. The initializer creates the account if it
+does not exist and does not reset the password of an existing account. Admin
+authentication then requires the email OTP flow. Use a strong unique password
+and configure a working email provider before relying on admin access.
 
-## 17. Operations and monitoring
+## 10. Data and external services
 
-| What | Where |
-|---|---|
-| Health | `GET /api/health` → `{"status": "ok"}` |
-| Users, AI usage, API traffic and errors | Admin dashboard |
-| Security events | Backend log, logger `smartag.security` (logins, lockouts, role changes, deletions, rate limits) |
-| Request metrics storage | `api_request_stats` table (hourly, flushed every minute) |
-| Startup warnings | Weak `SECRET_KEY`, admin password below policy |
+### Mandi source modes
 
-**Routine tasks**: review lockout and rate-limit events weekly; check 5xx rate on
-the admin dashboard; keep dependencies patched (`pip list --outdated`, `npm audit`);
-verify database backups.
+`MANDI_SOURCE=dataset` imports CSV files from `MANDI_DATASET_DIR` or the
+repository's `dataset/` folder. CSV headers are case-insensitive and must
+include:
 
-## 18. Quality and testing
+```text
+state,district,market,commodity,variety,grade,arrival_date,min_price,max_price,modal_price
+```
 
-- Changes in this release were verified with scripted end-to-end checks against
-  throwaway databases (auth, OTP, lockout, session revocation, rate limits, uploads,
-  user removal, admin metrics) and browser checks of every page for each role at
-  desktop and phone widths.
-- **There is no automated test suite in the repository yet.** Adding one
-  (pytest for the API, Playwright for key journeys) is the top quality item on the roadmap.
+Arrival dates use `DD/MM/YYYY`. Prices remain in rupees per quintal. The
+scheduler checks for changed dataset files periodically and imports them;
+changed file signatures are remembered by the running process.
 
-## 19. Known limitations and roadmap
+`MANDI_SOURCE=api` downloads pages from data.gov.in using
+`DATA_GOV_API_KEY` and `DATA_GOV_MANDI_RESOURCE`. Configure the key through the
+server environment; it is redacted from synchronization logs. The scheduler
+checks whether the configured refresh interval is due. A manual sync is
+available to admins through `POST /api/mandi-prices/sync`.
 
-**Known limitations**
-- Rate limits and request metrics are per process (single worker only).
-- No admin screen yet for reviewing driver documents (API only) or managing markets.
-- Market prices depend on price managers entering them; there is no external price feed.
-- AI response and voice transcription speed depend on Gemini load.
-- Voice recognition was verified with English speech; other languages rely on Gemini support.
-- Sessions are stored in browser `localStorage` (mitigated by the CSP).
-- New interface text is in English until translations are regenerated
-  (`frontend/scripts/generate-translations.mjs`).
+Both modes record synchronization runs, upsert duplicate observations by
+market/commodity/date identity, and prune records older than the configured
+retention window relative to the newest loaded arrival date. A failed import is
+recorded as a failed run; review the status endpoint and server logs.
 
-**Roadmap (suggested)**
-1. Automated tests and CI.
-2. Admin pages for document verification and market management.
-3. Shared store (Redis) for rate limits; multi-worker deployment.
-4. Government price feed integration (e.g. Agmarknet) alongside manual prices.
-5. SMS / WhatsApp OTP and notifications for users without email.
-6. Offline-friendly mobile experience (PWA).
+### Geospatial services
 
-## 20. Glossary
+- Nominatim is queried for place and market coordinates, with a one-request-per-
+  second throttle and a database cache.
+- OSRM is used for driving distance and duration; route results are cached.
+- The client displays Leaflet maps and third-party map tiles.
+- These are external public services. Availability, accuracy, acceptable use,
+  rate limits, and terms are outside the application's control.
 
-| Term | Meaning |
-|---|---|
-| Mandi | Regulated agricultural market |
-| Net proceeds | Money the farmer keeps after transport and market costs |
-| Shared truck | A truck whose spare capacity is sold to several farmers |
-| OTP | One-time password (6-digit code) sent by email |
-| MFA | Multi-factor authentication (password + emailed code for admins) |
-| Stale price | Price older than 48 hours |
-| SSE | Server-Sent Events, used to stream AI replies |
+### AI and email dependencies
+
+Gemini requires a server-side key. Ollama must be reachable at
+`OLLAMA_BASE_URL` with the configured model available. OTP email first uses the
+Mailtrap API when configured, with optional SMTP fallback; if neither is
+configured, local-development behavior may log an OTP to backend output. Do not
+use console-delivered OTPs in production.
+
+## 11. Security and operations
+
+The detailed security requirements and controls are maintained in
+[SECURITY.md](../SECURITY.md). Key operational points:
+
+- Use HTTPS in production; set `ENVIRONMENT=production`, a strong random
+  `SECRET_KEY`, and an HTTPS `FRONTEND_URL`.
+- Keep `.env` files, API keys, database credentials, OTPs, and user documents
+  out of source control and public logs.
+- The backend enforces role and record ownership checks; do not weaken them to
+  accommodate frontend-only behavior.
+- Production configuration disables FastAPI interactive API documentation and
+  checks for weak secrets.
+- Security headers are added by the API and Vite development/preview
+  configuration. Production frontend hosting must also send the required
+  response headers; see `SECURITY.md`.
+- Rate limiting is maintained in process memory. A multi-worker or
+  multi-instance deployment needs a shared limiter to enforce global limits.
+- Uploaded user documents are protected resources. Restrict administrative
+  access and use secure database backups.
+- Request metrics and application logs may contain operational metadata; set
+  appropriate access and retention controls.
+
+### Production deployment checklist
+
+1. Provision PostgreSQL and create a dedicated least-privilege application
+   account. Configure a TLS database connection as required by the provider.
+2. Set all backend environment values through the deployment platform's secret
+   store; use a strong secret key and production frontend URL.
+3. Configure the frontend build with the public API origin only. Do not put
+   private service credentials in `VITE_*` values.
+4. Configure and test OTP email before enabling administrator or password
+   recovery workflows.
+5. Select the mandi source and verify `GET /api/mandi-prices/status` after
+   startup.
+6. Verify Nominatim/OSRM network access and configure a supported production
+   mapping/routing service if public endpoints do not meet expected service
+   requirements.
+7. Serve the frontend and API over HTTPS, apply security headers at the hosting
+   layer, and restrict database and API network access.
+8. Back up the database and rehearse schema-upgrade and restore procedures.
+9. Monitor health, API metrics, synchronization status, database capacity, and
+   external integration failures.
+
+## 12. Build and validation
+
+Frontend production build:
+
+```powershell
+Set-Location agri-project\frontend
+npm run build
+```
+
+Backend syntax compilation:
+
+```powershell
+python -m compileall -q agri-project\backend\app
+```
+
+The frontend package currently defines `dev`, `build`, and `preview` scripts;
+it does not declare a test or lint script. Add or run focused test suites when
+available. A successful production build verifies bundling, not runtime
+integration with the database, email provider, AI provider, or map services.
+
+## 13. Known constraints and maintenance notes
+
+- **Schema evolution:** startup uses `create_all` and hand-written compatibility
+  changes for selected historical fields. There is no versioned migration
+  toolchain in the current dependency manifest. Plan explicit, reversible
+  migrations and backups for production changes; do not assume `create_all`
+  alters existing tables.
+- **Database portability:** SQLite connection arguments are handled in the
+  database module, and mandi upserts select PostgreSQL/SQLite dialects.
+  Nevertheless, production setup in the README targets PostgreSQL and one
+  legacy migration path contains SQLite-specific SQL. Validate the complete
+  startup path against the actual production database engine.
+- **Mandi freshness:** dataset mode only changes when CSV files change. API mode
+  depends on data.gov.in availability and key quotas. A successful sync does
+  not mean every market has a current arrival record.
+- **Price units and semantics:** app-recorded prices are per kilogram;
+  government prices are per quintal. Different source dates and market names
+  are possible; display source, date, and units when comparing or exporting.
+- **Market finder estimates:** geocoding can be approximate, road routing may
+  be unavailable, a suitable app truck may not exist, and prices can change.
+  Explain assumptions and uncertainty in user-facing contexts.
+- **External dependencies:** Gemini, Ollama, Mailtrap/SMTP, data.gov.in,
+  Nominatim, OSRM, and map tiles can fail independently. The API and UI should
+  surface these as unavailable or stale rather than presenting old results as
+  current.
+- **Rate-limit scope:** the in-memory limiter is per process and is not a
+  distributed abuse-control solution.
+- **Localization:** ten languages are represented in the translation catalog,
+  but recently added or hard-coded UI text can still fall back to English.
+- **Generated translation files:** `frontend/src/i18n/translations.js` is
+  generated by `scripts/generate-translations.mjs`; make source-copy changes in
+  the appropriate message source and regenerate rather than editing generated
+  output by hand.
+
+## Further reading
+
+- [Project README](../README.md) — original quick-start overview.
+- [Security policy](../SECURITY.md) — detailed security rules and controls.
+- [Backend environment template](../agri-project/backend/.env.example) —
+  backend setting names and safe example values.
+- [Frontend environment template](../agri-project/frontend/.env.example) —
+  public API URL configuration.

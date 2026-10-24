@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+import { useLanguage } from '../context/LanguageContext'
 
 const originIcon = L.divIcon({
   className: 'mf-origin-marker',
@@ -22,9 +23,11 @@ const LAYERS = {
 }
 
 const rupees = (value) => `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
-const duration = (minutes) => {
+const duration = (minutes, language) => {
   const m = Math.round(minutes)
-  return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`
+  const format = (unit, value) =>
+    new Intl.NumberFormat(language, { style: 'unit', unit, unitDisplay: 'short' }).format(value)
+  return m >= 60 ? `${format('hour', Math.floor(m / 60))} ${format('minute', m % 60)}` : format('minute', m)
 }
 
 const svgProps = {
@@ -63,6 +66,7 @@ function ClickToSetOrigin({ onPick }) {
  * picks: {best_profit: key, ...}; route: [[lat, lng]...] to the selected market.
  */
 export default function MarketFinderMap({ origin, markets, options, picks, selectedKey, onSelect, route, onPickOrigin }) {
+  const { t, lang } = useLanguage()
   const shellRef = useRef(null)
   const [map, setMap] = useState(null)
   const [fullscreen, setFullscreen] = useState(false)
@@ -155,17 +159,17 @@ export default function MarketFinderMap({ origin, markets, options, picks, selec
             >
               <Popup>
                 <strong>{o.market}</strong><br />
-                {o.district} · {o.road_km} km · {duration(o.drive_minutes)}<br />
-                Modal {rupees(o.modal_price)}/q (₹{o.price_per_kg}/kg)<br />
-                Net in hand <strong>{rupees(o.net)}</strong>
-                {o.location_precision === 'district' && <><br /><em>Location: district centre</em></>}
+                {o.district} · {o.road_km} km · {duration(o.drive_minutes, lang)}<br />
+                {t('finder.modalLabel')} {rupees(o.modal_price)}/q (₹{o.price_per_kg}/kg)<br />
+                {t('finder.netInHand')} <strong>{rupees(o.net)}</strong>
+                {o.location_precision === 'district' && <><br /><em>{t('finder.locationApprox')}</em></>}
               </Popup>
             </CircleMarker>
           )
         })}
 
         <Marker position={[origin.lat, origin.lng]} icon={originIcon}>
-          <Popup>Pickup: {origin.label}</Popup>
+          <Popup>{t('finder.pickupLabel')}: {origin.label}</Popup>
         </Marker>
       </MapContainer>
 
@@ -178,7 +182,7 @@ export default function MarketFinderMap({ origin, markets, options, picks, selec
             <strong>{selected.market}</strong>
             <span>{selected.district}, {selected.state}</span>
             <small>
-              <b>{rupees(selected.net)}</b> in hand · {selected.road_km} km · {duration(selected.drive_minutes)} · ₹{selected.price_per_kg}/kg
+              <b>{rupees(selected.net)}</b> {t('finder.inHand')} · {selected.road_km} km · {duration(selected.drive_minutes, lang)} · ₹{selected.price_per_kg}/kg
             </small>
             <small className="mf-gm-muted">From {origin.label}</small>
           </div>
@@ -189,24 +193,24 @@ export default function MarketFinderMap({ origin, markets, options, picks, selec
         type="button"
         className="mf-gm-btn mf-gm-toggle"
         onClick={fullscreen ? exitFullscreen : enterFullscreen}
-        title={fullscreen ? 'Exit full screen' : 'Full screen'}
-        aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
+        title={fullscreen ? t('finder.exitFullScreen') : t('finder.fullScreen')}
+        aria-label={fullscreen ? t('finder.exitFullScreen') : t('finder.fullScreen')}
       >
         {fullscreen ? <CloseIcon /> : <ExpandIcon />}
       </button>
 
       {fullscreen && (
         <>
-          <button type="button" className="mf-gm-btn mf-gm-route" onClick={showRoute} title="Show route" aria-label="Show route">
+          <button type="button" className="mf-gm-btn mf-gm-route" onClick={showRoute} title={t('finder.showRoute')} aria-label={t('finder.showRoute')}>
             <LocateIcon />
           </button>
           <button
             type="button"
             className={`mf-gm-layer mf-gm-layer-${otherLayer}`}
             onClick={() => setLayer(otherLayer)}
-            aria-label={otherLayer === 'satellite' ? 'Satellite view' : 'Map view'}
+            aria-label={otherLayer === 'satellite' ? t('finder.satelliteView') : t('finder.mapView')}
           >
-            <span>{otherLayer === 'satellite' ? 'Satellite' : 'Map'}</span>
+            <span>{otherLayer === 'satellite' ? t('finder.satelliteView') : t('finder.mapView')}</span>
           </button>
         </>
       )}

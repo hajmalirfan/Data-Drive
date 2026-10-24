@@ -594,3 +594,6 @@
   .chat-suggestions { grid-template-columns: 1fr; }
   .chat-empty h1 { font-size: 18px; }
 }
+
+/* Note under the typing dots when the first words are slow */
+.chat-slow { display: block; margin-top: 6px; font-size: 10.5px; color: #7b897f; }

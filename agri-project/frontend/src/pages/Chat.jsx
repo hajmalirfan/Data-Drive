@@ -31,6 +31,8 @@ export default function Chat() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  // Shown under the typing dots when the first words take longer than usual.
+  const [slowReply, setSlowReply] = useState(false)
   const [loadingList, setLoadingList] = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [status, setStatus] = useState(null)
@@ -157,6 +159,8 @@ export default function Chat() {
     setError('')
     setInput('')
     setSending(true)
+    setSlowReply(false)
+    const slowTimer = setTimeout(() => setSlowReply(true), 12000)
 
     const optimisticId = `temp-user-${Date.now()}`
     const assistantTempId = `temp-assistant-${Date.now()}`
@@ -183,6 +187,8 @@ export default function Chat() {
           setConversations((prev) => upsertConversation(prev, conversation))
         },
         onDelta: ({ content: chunk }) => {
+          clearTimeout(slowTimer)
+          setSlowReply(false)
           setMessages((prev) =>
             prev.map((item) =>
               item.id === assistantTempId
@@ -212,6 +218,8 @@ export default function Chat() {
         setInput(content)
       }
     } finally {
+      clearTimeout(slowTimer)
+      setSlowReply(false)
       setSending(false)
       listConversations().then(setConversations).catch(() => {})
       focusInput()
@@ -398,7 +406,12 @@ export default function Chat() {
                     <div className="chat-avatar"><Icon name="leaf" size={15} /></div>
                   )}
                   <div className="chat-bubble">
-                    {message.content ? message.content : <TypingDots />}
+                    {message.content ? message.content : (
+                      <>
+                        <TypingDots />
+                        {slowReply && <small className="chat-slow">{t('chatSlow')}</small>}
+                      </>
+                    )}
                   </div>
                 </div>
               ))
@@ -406,7 +419,10 @@ export default function Chat() {
             {sending && lastMessage?.role === 'user' && (
               <div className="chat-msg assistant">
                 <div className="chat-avatar"><Icon name="leaf" size={15} /></div>
-                <div className="chat-bubble"><TypingDots /></div>
+                <div className="chat-bubble">
+                  <TypingDots />
+                  {slowReply && <small className="chat-slow">{t('chatSlow')}</small>}
+                </div>
               </div>
             )}
           </div>

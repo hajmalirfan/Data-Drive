@@ -31,14 +31,20 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 limit_ai_message = rate_limit("ai_message", 20, 60)
 limit_transcribe = rate_limit("ai_transcribe", 10, 60)
 
-GEMINI_API_URL = (
-    "https://generativelanguage.googleapis.com/v1beta/models/"
-    f"{settings.GEMINI_MODEL}:generateContent"
-)
-GEMINI_STREAM_URL = (
-    "https://generativelanguage.googleapis.com/v1beta/models/"
-    f"{settings.GEMINI_MODEL}:streamGenerateContent"
-)
+GEMINI_MODEL_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:{method}"
+# Statuses that mean "this model is busy/unavailable right now" -> try the fallback model.
+GEMINI_RETRY_STATUSES = {429, 500, 502, 503, 504}
+
+
+def _gemini_models() -> list[str]:
+    """Main chat model first, then the faster fallback (deduplicated)."""
+    return list(dict.fromkeys(m for m in (settings.GEMINI_MODEL, settings.GEMINI_FALLBACK_MODEL) if m))
+
+
+def _gemini_timeout() -> httpx.Timeout:
+    # `read` bounds the wait for the first (and each following) chunk, so a stalled
+    # model fails fast instead of leaving the chat spinning for minutes.
+    return httpx.Timeout(settings.GEMINI_TIMEOUT_SECONDS, connect=5.0, read=settings.GEMINI_FIRST_TOKEN_SECONDS)
 
 OLLAMA_BASE_URL = settings.OLLAMA_BASE_URL.rstrip("/")
 OLLAMA_CHAT_URL = f"{OLLAMA_BASE_URL}/api/chat"
@@ -231,19 +237,24 @@ async def _gemini_reply(
     history: list[ChatMessage], role: str, language: str | None, content: str
 ) -> str:
     payload = _gemini_payload(history, role, language, content)
-    try:
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(settings.GEMINI_TIMEOUT_SECONDS, connect=5.0)
-        ) as client:
-            response = await client.post(
-                GEMINI_API_URL,
-                headers={"x-goog-api-key": settings.GEMINI_API_KEY},
-                json=payload,
-            )
-    except httpx.HTTPError:
+    response = None
+    async with httpx.AsyncClient(timeout=_gemini_timeout()) as client:
+        for model in _gemini_models():
+            try:
+                response = await client.post(
+                    GEMINI_MODEL_URL.format(model=model, method="generateContent"),
+                    headers={"x-goog-api-key": settings.GEMINI_API_KEY},
+                    json=payload,
+                )
+            except httpx.HTTPError:
+                response = None
+                continue  # slow or unreachable: try the next model
+            if response.status_code not in GEMINI_RETRY_STATUSES:
+                break
+    if response is None:
         raise HTTPException(
             status_code=503,
-            detail="Could not connect to Gemini. Check your network and try again.",
+            detail="Gemini is busy or unreachable right now. Please try again in a moment.",
         )
 
     if response.is_error:
@@ -602,38 +613,48 @@ async def stream_message(
                                     parts.append(delta)
                                     yield _sse("delta", {"content": delta})
             else:
-                async with httpx.AsyncClient(
-                    timeout=httpx.Timeout(settings.GEMINI_TIMEOUT_SECONDS, connect=5.0)
-                ) as client:
-                    async with client.stream(
-                        "POST",
-                        GEMINI_STREAM_URL,
-                        params={"alt": "sse"},
-                        headers={"x-goog-api-key": settings.GEMINI_API_KEY},
-                        json=payload,
-                    ) as response:
-                        if response.is_error:
-                            error_detail = (
-                                f"Gemini API request failed (HTTP {response.status_code}). "
-                                "Check the API key and quota."
-                            )
-                        else:
-                            async for line in response.aiter_lines():
-                                if not line.startswith("data:"):
-                                    continue
-                                try:
-                                    chunk = json.loads(line[5:].strip())
-                                except json.JSONDecodeError:
-                                    continue
-                                delta = _gemini_text(chunk)
-                                if delta:
-                                    parts.append(delta)
-                                    yield _sse("delta", {"content": delta})
+                async with httpx.AsyncClient(timeout=_gemini_timeout()) as client:
+                    for model in _gemini_models():
+                        try:
+                            async with client.stream(
+                                "POST",
+                                GEMINI_MODEL_URL.format(model=model, method="streamGenerateContent"),
+                                params={"alt": "sse"},
+                                headers={"x-goog-api-key": settings.GEMINI_API_KEY},
+                                json=payload,
+                            ) as response:
+                                if response.is_error:
+                                    error_detail = (
+                                        f"Gemini API request failed (HTTP {response.status_code}). "
+                                        "Check the API key and quota."
+                                    )
+                                    if response.status_code in GEMINI_RETRY_STATUSES:
+                                        continue  # busy: try the fallback model
+                                    break
+                                async for line in response.aiter_lines():
+                                    if not line.startswith("data:"):
+                                        continue
+                                    try:
+                                        chunk = json.loads(line[5:].strip())
+                                    except json.JSONDecodeError:
+                                        continue
+                                    delta = _gemini_text(chunk)
+                                    if delta:
+                                        parts.append(delta)
+                                        yield _sse("delta", {"content": delta})
+                        except httpx.HTTPError:
+                            error_detail = "Gemini is busy or unreachable right now. Please try again in a moment."
+                            if parts:
+                                break  # keep the partial answer already shown
+                            continue  # nothing sent yet: try the fallback model
+                        if parts:
+                            error_detail = None
+                            break
         except httpx.HTTPError:
             error_detail = (
                 "Could not connect to Ollama. Make sure 'ollama serve' is running."
                 if provider == "ollama"
-                else "Could not connect to Gemini. Check your network and try again."
+                else "Gemini is busy or unreachable right now. Please try again in a moment."
             )
 
         reply_text = "".join(parts).strip()

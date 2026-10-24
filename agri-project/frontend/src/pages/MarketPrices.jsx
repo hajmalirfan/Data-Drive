@@ -154,11 +154,11 @@ export default function MarketPrices() {
         </div>
         <div className="ui-toolbar-actions">
           <Link to="/markets" className="ui-btn ui-btn-outline">
-            <Icon name="markets" size={15} /> Compare distance
+            <Icon name="markets" size={15} /> {t('prices.compareDistance')}
           </Link>
           {canPublish && (
             <button type="button" className="ui-btn ui-btn-primary" onClick={openModal}>
-              <Icon name="plus" size={15} /> Publish price
+              <Icon name="plus" size={15} /> {t('prices.publish')}
             </button>
           )}
         </div>
@@ -214,11 +214,11 @@ export default function MarketPrices() {
             <span><Icon name="info" size={13} />{t('prices.staleHint')}</span>
             {(crop || marketId) && (
               <button type="button" className="ui-btn ui-btn-outline ui-btn-sm" onClick={clearFilters}>
-                Clear filters
+                {t('prices.clearFilters')}
               </button>
             )}
             <button type="button" className="ui-btn ui-btn-outline ui-btn-sm" onClick={() => getPrices({ crop_name: crop || undefined, market_id: marketId || undefined, limit: 200 }).then(setPrices)}>
-              <Icon name="refresh" size={13} /> Refresh
+              <Icon name="refresh" size={13} /> {t('common.refresh')}
             </button>
           </div>
         </div>

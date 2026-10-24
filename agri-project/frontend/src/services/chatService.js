@@ -24,6 +24,9 @@ export const transcribeAudio = (audioBlob, language) => {
   return api.post('/api/chat/transcribe', body, { timeout: 90000 }).then((r) => r.data)
 }
 
+// The backend falls back to a faster model after ~20 s, so 75 s of silence means something is wrong.
+const STREAM_IDLE_MS = 75000
+
 function parseEvent(block) {
   let event = 'message'
   const dataLines = []
@@ -57,6 +60,18 @@ export async function streamMessage(
 ) {
   const token = localStorage.getItem('token')
   let response
+  // Watchdog: give up if the stream sends nothing for STREAM_IDLE_MS, so the chat never spins forever.
+  const controller = new AbortController()
+  let idleTimer
+  let timedOut = false
+  const resetIdle = () => {
+    clearTimeout(idleTimer)
+    idleTimer = setTimeout(() => { timedOut = true; controller.abort() }, STREAM_IDLE_MS)
+  }
+  const idleError = () =>
+    new Error('The assistant is taking too long to answer. Please try again in a moment.')
+  resetIdle()
+
   try {
     response = await fetch(
       `${API_BASE_URL}/api/chat/conversations/${conversationId}/messages/stream`,
@@ -67,9 +82,12 @@ export async function streamMessage(
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ content, language, provider }),
+        signal: controller.signal,
       }
     )
   } catch {
+    clearTimeout(idleTimer)
+    if (timedOut) throw idleError()
     throw new Error('Network error. Check that the backend is running and try again.')
   }
 
@@ -101,6 +119,7 @@ export async function streamMessage(
     while (true) {
       const { value, done } = await reader.read()
       if (done) break
+      resetIdle()
       buffer += decoder.decode(value, { stream: true })
       buffer = buffer.replace(/\r\n/g, '\n')
       const blocks = buffer.split('\n\n')
@@ -112,6 +131,8 @@ export async function streamMessage(
     if (buffer.trim()) processBlock(buffer)
   } catch (error) {
     await reader.cancel().catch(() => {})
-    throw error
+    throw timedOut ? idleError() : error
+  } finally {
+    clearTimeout(idleTimer)
   }
 }

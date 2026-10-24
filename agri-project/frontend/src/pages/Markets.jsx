@@ -13,9 +13,11 @@ const rupees = (value, digits = 0) =>
   value === null || value === undefined
     ? '—'
     : `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: digits, minimumFractionDigits: digits })}`
-const duration = (minutes) => {
+const duration = (minutes, language) => {
   const m = Math.round(minutes)
-  return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`
+  const format = (unit, value) =>
+    new Intl.NumberFormat(language, { style: 'unit', unit, unitDisplay: 'short' }).format(value)
+  return m >= 60 ? `${format('hour', Math.floor(m / 60))} ${format('minute', m % 60)}` : format('minute', m)
 }
 
 const PICKS = [
@@ -32,7 +34,7 @@ const SORTS = {
 }
 
 export default function Markets() {
-  const { t } = useLanguage()
+  const { t, lang } = useLanguage()
   const [commodities, setCommodities] = useState([])
   const [crops, setCrops] = useState([])
   const [form, setForm] = useState({ commodity: '', quantity: '', cropId: '', costPerKg: '', place: '' })
@@ -231,7 +233,7 @@ export default function Markets() {
                   <b>{rupees(o.net)}</b> {t('finder.inHand')}
                 </span>
                 <span className="mf-pick-meta">
-                  {o.road_km} km · {duration(o.drive_minutes)} · {rupees(o.price_per_kg, 2)}/kg
+                  {o.road_km} km · {duration(o.drive_minutes, lang)} · {rupees(o.price_per_kg, 2)}/kg
                 </span>
               </button>
             )
@@ -297,7 +299,7 @@ export default function Markets() {
                   <small>{o.district}{o.location_precision === 'district' ? ` · ${t('finder.approxLocation')}` : ''}</small>
                   <span className="mf-item-meta">
                     <span><Icon name="route" size={11} /> {o.road_km} km</span>
-                    <span><Icon name="clock" size={11} /> {duration(o.drive_minutes)}</span>
+                    <span><Icon name="clock" size={11} /> {duration(o.drive_minutes, lang)}</span>
                     <span><Icon name="prices" size={11} /> {rupees(o.price_per_kg, 2)}/kg</span>
                   </span>
                 </span>
