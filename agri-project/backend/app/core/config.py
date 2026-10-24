@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 1 day
     DATABASE_URL: str = "postgresql+psycopg2://postgres:postgres@127.0.0.1:5432/agri"
     FRONTEND_URL: str = "http://localhost:5173"
+    ADDITIONAL_FRONTEND_ORIGINS: str = "https://agri-project-frontend-2bf3.onrender.com"
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-flash-latest"
     GEMINI_TIMEOUT_SECONDS: int = 180

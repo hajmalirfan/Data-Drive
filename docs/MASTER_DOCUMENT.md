@@ -375,6 +375,7 @@ mean a value must be provided when the associated feature is used.
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Token lifetime; default 1440 minutes. |
 | `DATABASE_URL` | SQLAlchemy connection URL; set to the deployed database. |
 | `FRONTEND_URL` | Allowed frontend origin; default `http://localhost:5173`. |
+| `ADDITIONAL_FRONTEND_ORIGINS` | Comma-separated explicit extra CORS origins; currently defaults to `https://agri-project-frontend-2bf3.onrender.com`. |
 | `PASSWORD_MIN_LENGTH` | Minimum password length; default 8. |
 | `LOGIN_MAX_FAILURES` | Failed login threshold; default 5. |
 | `LOGIN_LOCKOUT_MINUTES` | Lock duration after threshold; default 15 minutes. |
@@ -555,6 +556,10 @@ The detailed security requirements and controls are maintained in
   out of source control and public logs.
 - The backend enforces role and record ownership checks; do not weaken them to
   accommodate frontend-only behavior.
+- CORS allows only `FRONTEND_URL`, the explicit
+  `ADDITIONAL_FRONTEND_ORIGINS` list, and local development origins outside
+  production. Add each deployed frontend origin exactly; do not use wildcard
+  origins.
 - Production configuration disables FastAPI interactive API documentation and
   checks for weak secrets.
 - Security headers are added by the API and Vite development/preview

@@ -99,12 +99,18 @@ app = FastAPI(
     openapi_url="/openapi.json" if _docs else None,
 )
 
+allowed_origins = {
+    origin.strip().rstrip("/")
+    for origin in [settings.FRONTEND_URL, *settings.ADDITIONAL_FRONTEND_ORIGINS.split(",")]
+    if origin.strip()
+}
+if not security_policy.is_production():
+    allowed_origins.update({"http://localhost:5173", "http://127.0.0.1:5173"})
+
 app.add_middleware(
     CORSMiddleware,
-    # Only the configured frontend may call the API; local dev origins outside production.
-    allow_origins=[settings.FRONTEND_URL] + (
-        [] if security_policy.is_production() else ["http://localhost:5173", "http://127.0.0.1:5173"]
-    ),
+    # Allow only the configured frontend origins; localhost is development-only.
+    allow_origins=sorted(allowed_origins),
     # Auth uses bearer tokens, not cookies, so credentials are never sent cross-origin.
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

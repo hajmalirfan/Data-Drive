@@ -70,6 +70,7 @@ Create a `.env` file from `.env.example`:
 SECRET_KEY=replace-with-a-long-random-secret
 DATABASE_URL=postgresql+psycopg2://postgres:postgres@127.0.0.1:5432/agri
 FRONTEND_URL=http://localhost:5173
+ADDITIONAL_FRONTEND_ORIGINS=https://agri-project-frontend-2bf3.onrender.com
 GEMINI_API_KEY=your-gemini-api-key
 GEMINI_MODEL=gemini-flash-latest
 GEMINI_TIMEOUT_SECONDS=180

@@ -90,10 +90,11 @@ production frontend must also send the headers above plus
 
 ## 7. CORS
 
-Only `FRONTEND_URL` may call the API (plus `localhost:5173` outside production).
-Credentials (cookies) are not allowed cross-origin; authentication uses the
-`Authorization` header. Allowed headers are limited to `Authorization` and
-`Content-Type`.
+Only `FRONTEND_URL` and the explicitly configured, comma-separated
+`ADDITIONAL_FRONTEND_ORIGINS` may call the API (plus `localhost:5173` and
+`127.0.0.1:5173` outside production). Credentials (cookies) are not allowed
+cross-origin; authentication uses the `Authorization` header. Allowed headers
+are limited to `Authorization` and `Content-Type`.
 
 ## 8. Secrets and configuration
 
