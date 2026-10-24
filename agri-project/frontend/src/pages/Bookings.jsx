@@ -43,16 +43,18 @@ const NEXT_STEP = {
   picked_up: 'in_transit',
   in_transit: 'delivered',
 }
+
 export default function Bookings() {
-  const { t, statusLabel, roleLabel } = useLanguage()
+  const { t, statusLabel } = useLanguage()
   const { isAdmin, isTruckOperator, isFarmer, isMarketer } = useAuth()
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [tab, setTab] = useState('all')
+  const [search, setSearch] = useState('')
+  const [selectedId, setSelectedId] = useState(null)
   const [busyId, setBusyId] = useState(null)
-  const [detail, setDetail] = useState(null)
   const [deliveryFor, setDeliveryFor] = useState(null)
   const [delivery, setDelivery] = useState({ actual_sold_quantity_kg: '', actual_price_per_kg: '', actual_expenses: '' })
   const [deliveryError, setDeliveryError] = useState('')
@@ -72,11 +74,49 @@ export default function Bookings() {
   useEffect(() => { load() }, [])
 
   const filtered = useMemo(() => {
-    if (tab === 'active') return bookings.filter((item) => ACTIVE.has(item.status))
-    if (tab === 'delivered') return bookings.filter((item) => item.status === 'delivered')
-    if (tab === 'closed') return bookings.filter((item) => ['cancelled', 'rejected'].includes(item.status))
-    return bookings
-  }, [bookings, tab])
+    const byTab =
+      tab === 'active'
+        ? bookings.filter((item) => ACTIVE.has(item.status))
+        : tab === 'delivered'
+          ? bookings.filter((item) => item.status === 'delivered')
+          : tab === 'closed'
+            ? bookings.filter((item) => ['cancelled', 'rejected'].includes(item.status))
+            : bookings
+
+    const term = search.trim().toLowerCase()
+    if (!term) return byTab
+    return byTab.filter((item) =>
+      [
+        `#${item.id}`,
+        item.id,
+        item.crop_name,
+        item.market_name,
+        item.pickup_location,
+        item.destination,
+        item.vehicle_number,
+        item.truck_type,
+        item.farmer_name,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(term))
+    )
+  }, [bookings, tab, search])
+
+  const selected = useMemo(
+    () => bookings.find((item) => item.id === selectedId) || null,
+    [bookings, selectedId]
+  )
+
+  useEffect(() => {
+    if (loading) return
+    if (filtered.length === 0) {
+      setSelectedId(null)
+      return
+    }
+    if (!filtered.some((item) => item.id === selectedId)) {
+      setSelectedId(filtered[0].id)
+    }
+  }, [filtered, loading, selectedId])
 
   const stats = useMemo(() => ({
     total: bookings.length,
@@ -91,7 +131,6 @@ export default function Bookings() {
     try {
       const updated = await updateBookingStatus(booking.id, { status, note })
       setBookings((prev) => prev.map((item) => (item.id === booking.id ? updated : item)))
-      setDetail((prev) => (prev?.id === booking.id ? updated : prev))
       setNotice(t('bookings.updated', [booking.id, statusLabel(status)]))
     } catch (err) {
       setError(err.response?.data?.detail || t('tracking.updateError'))
@@ -137,6 +176,13 @@ export default function Bookings() {
       (Number(delivery.actual_expenses) || 0)
     : 0
 
+  const tabs = [
+    ['all', t('common.all'), bookings.length],
+    ['active', t('common.active'), stats.active],
+    ['delivered', t('common.delivered'), stats.delivered],
+    ['closed', t('bookings.tabClosed'), bookings.filter((item) => ['cancelled', 'rejected'].includes(item.status)).length],
+  ]
+
   return (
     <div className="ui-page bookings-page">
       <div className="ui-toolbar">
@@ -146,10 +192,10 @@ export default function Bookings() {
         </div>
         <div className="ui-toolbar-actions">
           <Link to="/trucks" className="ui-btn ui-btn-primary">
-            <Icon name="plus" size={15} /> New booking
+            <Icon name="plus" size={15} /> {t('bookings.newBooking')}
           </Link>
           <button type="button" className="ui-btn ui-btn-outline" onClick={load}>
-            <Icon name="refresh" size={14} /> Refresh
+            <Icon name="refresh" size={14} /> {t('common.refresh')}
           </button>
         </div>
       </div>
@@ -164,218 +210,199 @@ export default function Bookings() {
         <div className="bookings-stat"><span className="red"><Icon name="rupee" size={17} /></span><div><small>{t('bookings.transportValue')}</small><strong>{inr(stats.transport)}</strong></div></div>
       </div>
 
-      <div className="ui-card">
-        <div className="bookings-tabs">
-          {[
-            ['all', t('common.all')],
-            ['active', t('common.active')],
-            ['delivered', t('common.delivered')],
-            ['closed', t('bookings.tabClosed')],
-          ].map(([value, label]) => (
-            <button key={value} type="button" className={tab === value ? 'active' : ''} onClick={() => setTab(value)}>
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div className="ui-card-body bookings-body">
-          {loading ? (
-            <div className="ui-loading"><span className="ui-spinner" />{t('bookings.loading')}</div>
-          ) : filtered.length === 0 ? (
-            <div className="ui-empty">
-              <span className="ui-empty-icon"><Icon name="bookings" size={22} /></span>
-              <strong>{t('bookings.none')}</strong>
-              <p>{tab === 'all' ? t('bookings.noneAll') : t('bookings.noneStatus')}</p>
-              {tab === 'all' && (
-                <Link to="/trucks" className="ui-btn ui-btn-primary ui-btn-sm" style={{ marginTop: 6 }}>
-                  <Icon name="truck" size={14} /> Find a truck
-                </Link>
-              )}
+      <div className="bookings-workspace">
+        <aside className="bookings-pane bookings-list-pane">
+          <div className="bookings-pane-head">
+            <div className="bookings-search">
+              <Icon name="search" size={15} />
+              <input
+                type="search"
+                value={search}
+                placeholder={t('bookings.searchPlaceholder')}
+                onChange={(event) => setSearch(event.target.value)}
+                aria-label={t('bookings.searchPlaceholder')}
+              />
             </div>
-          ) : (
-            <div className="ui-table-wrap">
-              <table className="ui-table bookings-table">
-                <thead>
-                  <tr>
-                    <th>{t('bookings.thBooking')}</th>
-                    <th>{t('bookings.thCropLoad')}</th>
-                    <th>{t('bookings.thRoute')}</th>
-                    <th>{t('common.truck')}</th>
-                    <th>{t('common.pickup')}</th>
-                    <th className="num">{t('common.quantity')}</th>
-                    <th className="num">{t('bookings.thTransport')}</th>
-                    <th>{t('common.status')}</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((booking) => {
-                    const active = ACTIVE.has(booking.status)
-                    const next = NEXT_STEP[booking.status]
-                    return (
-                      <tr key={booking.id}>
-                        <td>
-                          <button type="button" className="bookings-id" onClick={() => setDetail(booking)}>
-                            #{booking.id}
-                          </button>
-                          <small className="bookings-sub">{booking.farmer_name || t('common.you')}</small>
-                        </td>
-                        <td>
-                          <strong>{booking.crop_name || t('common.generalGoods')}</strong>
-                          <small className="bookings-sub">{kg(booking.quantity_kg)}</small>
-                        </td>
-                        <td>
-                          <strong>{booking.market_name}</strong>
-                          <small className="bookings-sub">{booking.pickup_location}</small>
-                        </td>
-                        <td>
-                          <strong>{booking.vehicle_number || '—'}</strong>
-                          <small className="bookings-sub">{booking.truck_type}</small>
-                        </td>
-                        <td className="muted">{when(booking.pickup_at)}</td>
-                        <td className="num">{kg(booking.quantity_kg)}</td>
-                        <td className="num">{inr(booking.estimated_transport_cost)}</td>
-                        <td><span className={`ui-badge ui-badge-${STATUS_TONE[booking.status] || 'grey'}`}>{statusLabel(booking.status)}</span></td>
-                        <td>
-                          <div className="actions">
-                            <button type="button" className="ui-icon-btn" title={t('bookings.viewDetails')} onClick={() => setDetail(booking)}>
-                              <Icon name="eye" size={14} />
-                            </button>
-                            {canOperate && booking.status === 'requested' && (
-                              <>
-                                <button
-                                  type="button"
-                                  className="ui-btn ui-btn-soft ui-btn-sm"
-                                  disabled={busyId === booking.id}
-                                  onClick={() => changeStatus(booking, 'accepted')}
-                                >
-                                  Accept
-                                </button>
-                                <button
-                                  type="button"
-                                  className="ui-btn ui-btn-danger ui-btn-sm"
-                                  disabled={busyId === booking.id}
-                                  onClick={() => changeStatus(booking, 'rejected')}
-                                >
-                                  Reject
-                                </button>
-                              </>
-                            )}
-                            {canOperate && next && booking.status !== 'requested' && (
-                              <button
-                                type="button"
-                                className="ui-btn ui-btn-soft ui-btn-sm"
-                                disabled={busyId === booking.id}
-                                onClick={() => changeStatus(booking, next)}
-                              >
-                                {statusLabel(next)}
-                              </button>
-                            )}
-                            {canOwn && active && booking.status !== 'requested' && (
-                              <button
-                                type="button"
-                                className="ui-btn ui-btn-outline ui-btn-sm"
-                                disabled={busyId === booking.id}
-                                onClick={() => changeStatus(booking, 'cancelled')}
-                              >
-                                {t('bookings.cancel')}
-                              </button>
-                            )}
-                            {canOwn && booking.status === 'delivered' && (
-                              <button type="button" className="ui-btn ui-btn-outline ui-btn-sm" onClick={() => openDelivery(booking)}>
-                                {booking.actual_price_per_kg ? t('bookings.editSale') : t('bookings.recordSale')}
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {detail && (
-        <Modal
-          title={t('bookings.bookingTitle', [detail.id])}
-          subtitle={`${detail.crop_name || t('common.generalGoods')} · ${detail.market_name}`}
-          onClose={() => setDetail(null)}
-          size="lg"
-          footer={<button type="button" className="ui-btn ui-btn-outline" onClick={() => setDetail(null)}>{t('common.close')}</button>}
-        >
-          <div className="booking-detail">
-            <div className="booking-detail-status">
-              <span className={`ui-badge ui-badge-${STATUS_TONE[detail.status] || 'grey'}`}>{statusLabel(detail.status)}</span>
-              <span>{ACTIVE.has(detail.status) ? t('bookings.tripActive') : t('bookings.tripClosed')}</span>
-            </div>
-            <div className="booking-detail-grid">
-              <div><span>{t('role.farmer')}</span><strong>{detail.farmer_name || t('common.you')}</strong></div>
-              <div><span>{t('common.truck')}</span><strong>{detail.vehicle_number} · {detail.truck_type}</strong></div>
-              <div><span>{t('common.pickup')}</span><strong>{detail.pickup_location}</strong></div>
-              <div><span>{t('common.destination')}</span><strong>{detail.destination || detail.market_name}</strong></div>
-              <div><span>{t('tracking.pickupTime')}</span><strong>{when(detail.pickup_at)}</strong></div>
-              <div><span>{t('bookings.requestedAt')}</span><strong>{when(detail.created_at)}</strong></div>
-              <div><span>{t('common.distance')}</span><strong>{Number(detail.distance_km).toFixed(0)} km · {detail.eta_minutes} min</strong></div>
-              <div><span>{t('common.quantity')}</span><strong>{kg(detail.quantity_kg)}</strong></div>
-              <div><span>{t('tracking.transportCost')}</span><strong>{inr(detail.estimated_transport_cost)}</strong></div>
-              <div><span>{t('bookings.estimatedNet')}</span><strong>{inr(detail.estimated_net_proceeds)}</strong></div>
-              <div><span>{t('bookings.accompanied')}</span><strong>{detail.accompanied ? t('bookings.yesTravelling') : t('common.no')}</strong></div>
-              <div><span>{t('bookings.locationSharing')}</span><strong>{detail.location_consent ? t('bookings.consented') : t('bookings.notShared')}</strong></div>
-            </div>
-            {detail.notes && <p className="booking-detail-note"><Icon name="info" size={13} /> {detail.notes}</p>}
-            {detail.actual_price_per_kg && (
-              <div className="booking-actuals">
-                <strong>{t('bookings.recordedSale')}</strong>
-                <div>
-                  <span>{t('bookings.soldQuantity')}</span><span>{kg(detail.actual_sold_quantity_kg)}</span>
-                </div>
-                <div>
-                  <span>{t('bookings.pricePerKg')}</span><span>{inr(detail.actual_price_per_kg)}</span>
-                </div>
-                <div>
-                  <span>{t('bookings.expenses')}</span><span>{inr(detail.actual_expenses)}</span>
-                </div>
-                <div className={t('tracking.total')}>
-                  <span>{t('bookings.netRealised')}</span>
-                  <span>{inr((detail.actual_sold_quantity_kg || 0) * (detail.actual_price_per_kg || 0) - (detail.actual_expenses || 0))}</span>
-                </div>
-              </div>
-            )}
-            <div className="booking-detail-actions">
-              {canOperate && NEXT_STEP[detail.status] && (
-                <button
-                  type="button"
-                  className="ui-btn ui-btn-primary ui-btn-sm"
-                  onClick={() => changeStatus(detail, NEXT_STEP[detail.status])}
-                >
-                  {t('bookings.markStatus', [statusLabel(NEXT_STEP[detail.status])])}
+            <div className="bookings-tabs">
+              {tabs.map(([value, label, count]) => (
+                <button key={value} type="button" className={tab === value ? 'active' : ''} onClick={() => setTab(value)}>
+                  {label}<span className="bookings-tab-count">{count}</span>
                 </button>
-              )}
-              {canOperate && detail.status === 'requested' && (
-                <button type="button" className="ui-btn ui-btn-danger ui-btn-sm" onClick={() => changeStatus(detail, 'rejected')}>
-                  {t('bookings.rejectBooking')}
-                </button>
-              )}
-              {canOwn && ACTIVE.has(detail.status) && detail.status !== 'requested' && (
-                <button type="button" className="ui-btn ui-btn-outline ui-btn-sm" onClick={() => changeStatus(detail, 'cancelled')}>
-                  {t('bookings.cancelBooking')}
-                </button>
-              )}
-              {canOwn && detail.status === 'delivered' && (
-                <button type="button" className="ui-btn ui-btn-outline ui-btn-sm" onClick={() => { setDetail(null); openDelivery(detail) }}>
-                  {detail.actual_price_per_kg ? t('bookings.editSaleDetails') : t('bookings.recordSale')}
-                </button>
-              )}
-              {ACTIVE.has(detail.status) && (
-                <Link to="/tracking" className="ui-btn ui-btn-outline ui-btn-sm">{t('bookings.openTracking')}</Link>
-              )}
+              ))}
             </div>
           </div>
-        </Modal>
-      )}
+
+          <div className="bookings-list">
+            {loading ? (
+              <div className="ui-loading"><span className="ui-spinner" />{t('bookings.loading')}</div>
+            ) : filtered.length === 0 ? (
+              <div className="ui-empty bookings-list-empty">
+                <span className="ui-empty-icon"><Icon name="bookings" size={22} /></span>
+                <strong>{t('bookings.none')}</strong>
+                <p>{search ? t('bookings.noneSearch') : tab === 'all' ? t('bookings.noneAll') : t('bookings.noneStatus')}</p>
+                {tab === 'all' && !search && (
+                  <Link to="/trucks" className="ui-btn ui-btn-primary ui-btn-sm" style={{ marginTop: 6 }}>
+                    <Icon name="truck" size={14} /> {t('bookings.findTruck')}
+                  </Link>
+                )}
+              </div>
+            ) : (
+              filtered.map((booking) => {
+                const active = ACTIVE.has(booking.status)
+                return (
+                  <button
+                    key={booking.id}
+                    type="button"
+                    className={`booking-card ${selectedId === booking.id ? 'active' : ''}`}
+                    onClick={() => setSelectedId(booking.id)}
+                  >
+                    <span className="booking-card-top">
+                      <span className="booking-card-id">#{booking.id}</span>
+                      <span className={`ui-badge ui-badge-${STATUS_TONE[booking.status] || 'grey'}`}>
+                        {statusLabel(booking.status)}
+                      </span>
+                    </span>
+                    <span className="booking-card-crop">
+                      <strong>{booking.crop_name || t('common.generalGoods')}</strong>
+                      <span>{kg(booking.quantity_kg)}</span>
+                    </span>
+                    <span className="booking-card-route">
+                      <Icon name="route" size={12} />
+                      {booking.market_name}
+                    </span>
+                    <span className="booking-card-meta">
+                      <span><Icon name="truck" size={12} /> {booking.vehicle_number || '—'}</span>
+                      <span><Icon name="clock" size={12} /> {when(booking.pickup_at)}</span>
+                    </span>
+                    <span className={`booking-card-strip ${active ? 'active' : ''}`} />
+                  </button>
+                )
+              })
+            )}
+          </div>
+        </aside>
+
+        <section className="bookings-pane bookings-detail-pane">
+          {selected ? (
+            <div className="booking-detail">
+              <header className="booking-detail-head">
+                <div>
+                  <div className="booking-detail-status">
+                    <span className={`ui-badge ui-badge-${STATUS_TONE[selected.status] || 'grey'}`}>
+                      {statusLabel(selected.status)}
+                    </span>
+                    <span>{ACTIVE.has(selected.status) ? t('bookings.tripActive') : t('bookings.tripClosed')}</span>
+                  </div>
+                  <h3>{t('bookings.bookingTitle', [selected.id])}</h3>
+                  <p>{selected.crop_name || t('common.generalGoods')} · {selected.market_name}</p>
+                </div>
+                <div className="booking-detail-quick">
+                  {ACTIVE.has(selected.status) && (
+                    <Link to="/tracking" className="ui-btn ui-btn-outline ui-btn-sm">{t('bookings.openTracking')}</Link>
+                  )}
+                  {canOwn && selected.status === 'delivered' && (
+                    <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={() => openDelivery(selected)}>
+                      {selected.actual_price_per_kg ? t('bookings.editSale') : t('bookings.recordSale')}
+                    </button>
+                  )}
+                </div>
+              </header>
+
+              <div className="booking-detail-grid">
+                <div><span>{t('role.farmer')}</span><strong>{selected.farmer_name || t('common.you')}</strong></div>
+                <div><span>{t('common.truck')}</span><strong>{selected.vehicle_number} · {selected.truck_type}</strong></div>
+                <div><span>{t('common.pickup')}</span><strong>{selected.pickup_location}</strong></div>
+                <div><span>{t('common.destination')}</span><strong>{selected.destination || selected.market_name}</strong></div>
+                <div><span>{t('tracking.pickupTime')}</span><strong>{when(selected.pickup_at)}</strong></div>
+                <div><span>{t('bookings.requestedAt')}</span><strong>{when(selected.created_at)}</strong></div>
+                <div><span>{t('common.distance')}</span><strong>{Number(selected.distance_km).toFixed(0)} km · {selected.eta_minutes} min</strong></div>
+                <div><span>{t('common.quantity')}</span><strong>{kg(selected.quantity_kg)}</strong></div>
+                <div><span>{t('tracking.transportCost')}</span><strong>{inr(selected.estimated_transport_cost)}</strong></div>
+                <div><span>{t('bookings.estimatedNet')}</span><strong>{inr(selected.estimated_net_proceeds)}</strong></div>
+                <div><span>{t('bookings.accompanied')}</span><strong>{selected.accompanied ? t('bookings.yesTravelling') : t('common.no')}</strong></div>
+                <div><span>{t('bookings.locationSharing')}</span><strong>{selected.location_consent ? t('bookings.consented') : t('bookings.notShared')}</strong></div>
+              </div>
+
+              {selected.notes && (
+                <p className="booking-detail-note"><Icon name="info" size={13} /> {selected.notes}</p>
+              )}
+
+              {selected.actual_price_per_kg && (
+                <div className="booking-actuals">
+                  <strong>{t('bookings.recordedSale')}</strong>
+                  <div>
+                    <span>{t('bookings.soldQuantity')}</span><span>{kg(selected.actual_sold_quantity_kg)}</span>
+                  </div>
+                  <div>
+                    <span>{t('bookings.pricePerKg')}</span><span>{inr(selected.actual_price_per_kg)}</span>
+                  </div>
+                  <div>
+                    <span>{t('bookings.expenses')}</span><span>{inr(selected.actual_expenses)}</span>
+                  </div>
+                  <div className={t('tracking.total')}>
+                    <span>{t('bookings.netRealised')}</span>
+                    <span>{inr((selected.actual_sold_quantity_kg || 0) * (selected.actual_price_per_kg || 0) - (selected.actual_expenses || 0))}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="booking-detail-actions">
+                {canOperate && selected.status === 'requested' && (
+                  <>
+                    <button
+                      type="button"
+                      className="ui-btn ui-btn-primary ui-btn-sm"
+                      disabled={busyId === selected.id}
+                      onClick={() => changeStatus(selected, 'accepted')}
+                    >
+                      {t('bookings.accept')}
+                    </button>
+                    <button
+                      type="button"
+                      className="ui-btn ui-btn-danger ui-btn-sm"
+                      disabled={busyId === selected.id}
+                      onClick={() => changeStatus(selected, 'rejected')}
+                    >
+                      {t('bookings.rejectBooking')}
+                    </button>
+                  </>
+                )}
+                {canOperate && NEXT_STEP[selected.status] && selected.status !== 'requested' && (
+                  <button
+                    type="button"
+                    className="ui-btn ui-btn-primary ui-btn-sm"
+                    disabled={busyId === selected.id}
+                    onClick={() => changeStatus(selected, NEXT_STEP[selected.status])}
+                  >
+                    {t('bookings.markStatus', [statusLabel(NEXT_STEP[selected.status])])}
+                  </button>
+                )}
+                {canOwn && ACTIVE.has(selected.status) && selected.status !== 'requested' && (
+                  <button
+                    type="button"
+                    className="ui-btn ui-btn-outline ui-btn-sm"
+                    disabled={busyId === selected.id}
+                    onClick={() => changeStatus(selected, 'cancelled')}
+                  >
+                    {t('bookings.cancelBooking')}
+                  </button>
+                )}
+                {canOwn && selected.status === 'delivered' && (
+                  <button type="button" className="ui-btn ui-btn-outline ui-btn-sm" onClick={() => openDelivery(selected)}>
+                    {selected.actual_price_per_kg ? t('bookings.editSaleDetails') : t('bookings.recordSale')}
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="ui-empty booking-detail-empty">
+              <span className="ui-empty-icon"><Icon name="bookings" size={24} /></span>
+              <strong>{t('bookings.selectTitle')}</strong>
+              <p>{t('bookings.selectHint')}</p>
+            </div>
+          )}
+        </section>
+      </div>
 
       {deliveryFor && (
         <Modal

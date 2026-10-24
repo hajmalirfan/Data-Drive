@@ -24,6 +24,7 @@ class ConversationOut(BaseModel):
 class ChatMessageIn(BaseModel):
     content: str = Field(min_length=1, max_length=8000)
     language: str | None = Field(default="en", max_length=10)
+    provider: str | None = Field(default="gemini", max_length=20)
 
 
 class ChatMessageOut(BaseModel):
@@ -46,7 +47,15 @@ class ChatReply(BaseModel):
     assistant_message: ChatMessageOut
 
 
+class AIModelStatus(BaseModel):
+    name: str
+    model: str
+    available: bool
+    detail: str | None = None
+
+
 class AIStatus(BaseModel):
     available: bool
     model: str
     detail: str | None = None
+    providers: list[AIModelStatus] = []

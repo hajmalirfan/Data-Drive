@@ -41,19 +41,30 @@ async function readError(response) {
   }
 }
 
-export async function streamMessage(conversationId, content, language, handlers = {}) {
+export async function streamMessage(
+  conversationId,
+  content,
+  language,
+  provider = 'gemini',
+  handlers = {}
+) {
   const token = localStorage.getItem('token')
-  const response = await fetch(
-    `${API_BASE_URL}/api/chat/conversations/${conversationId}/messages/stream`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ content, language }),
-    }
-  )
+  let response
+  try {
+    response = await fetch(
+      `${API_BASE_URL}/api/chat/conversations/${conversationId}/messages/stream`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ content, language, provider }),
+      }
+    )
+  } catch {
+    throw new Error('Network error. Check that the backend is running and try again.')
+  }
 
   if (!response.ok) {
     throw new Error(await readError(response))

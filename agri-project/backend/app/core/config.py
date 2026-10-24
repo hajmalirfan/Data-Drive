@@ -11,6 +11,16 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-flash-latest"
     GEMINI_TIMEOUT_SECONDS: int = 180
     SEED_DEMO_DATA: bool = False
+
+    # AI answer size and history limits (kept small for fast, focused replies)
+    AI_MAX_OUTPUT_TOKENS: int = 200
+    AI_MAX_HISTORY_MESSAGES: int = 6
+    AI_MAX_INPUT_CHARS: int = 1200
+
+    # Local Ollama provider
+    OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
+    OLLAMA_MODEL: str = "llama3.2:3b"
+    OLLAMA_TIMEOUT_SECONDS: int = 120
     TRANSPORT_RATE_PER_KM: float = 28.0
     LOADING_COST: float = 500.0
     MARKET_LOSS_PCT: float = 2.0
