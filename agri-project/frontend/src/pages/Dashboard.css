@@ -1,128 +1,5 @@
 .dbm { gap: 18px; }
 
-.dbm-hero {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 26px;
-  min-height: 186px;
-  padding: 26px 28px;
-  border-radius: 20px;
-  overflow: hidden;
-  background:
-    radial-gradient(120% 160% at 88% 10%, rgba(127, 208, 146, 0.42) 0%, transparent 52%),
-    linear-gradient(118deg, #145d35 0%, #1f7b45 58%, #2c9554 100%);
-  color: #fff;
-  box-shadow: 0 16px 38px rgba(22, 92, 50, 0.18);
-}
-.dbm-hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
-  background-size: 18px 18px;
-  opacity: 0.45;
-  pointer-events: none;
-}
-.dbm-hero-copy {
-  position: relative;
-  z-index: 2;
-  flex: 1 1 480px;
-  min-width: 0;
-}
-.dbm-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 2px 10px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.14);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-}
-.dbm-hero h2 {
-  margin-top: 10px;
-  font-size: clamp(26px, 3vw, 37px);
-  line-height: 1.09;
-  letter-spacing: -1.1px;
-  font-weight: 800;
-  color: #fff;
-}
-.dbm-hero h2 em {
-  font-style: normal;
-  color: #f7d685;
-}
-.dbm-hero p {
-  margin-top: 9px;
-  max-width: 530px;
-  font-size: 12px;
-  line-height: 1.55;
-  color: rgba(255, 255, 255, 0.76);
-}
-.dbm-hero-actions {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-top: 15px;
-  flex-wrap: wrap;
-}
-.dbm-hero-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  height: 38px;
-  padding: 0 16px;
-  border-radius: 10px;
-  background: #fff;
-  color: #156436;
-  font-size: 12px;
-  font-weight: 800;
-  text-decoration: none;
-  box-shadow: 0 7px 18px rgba(10, 45, 24, 0.2);
-}
-.dbm-hero-btn:hover { text-decoration: none; background: #fbfdf9; }
-.dbm-hero-link {
-  color: #fff;
-  font-size: 11.5px;
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.dbm-hero-visual {
-  position: relative;
-  z-index: 2;
-  flex: 0 1 420px;
-  min-width: 260px;
-  display: flex;
-  justify-content: center;
-}
-.dbm-hero-art {
-  width: min(420px, 100%);
-  height: auto;
-  display: block;
-  filter: drop-shadow(0 16px 25px rgba(8, 41, 21, 0.18));
-}
-.dbm-hero-chip {
-  position: absolute;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 27px;
-  padding: 0 9px;
-  border-radius: 8px;
-  background: #fff;
-  color: #2e4b36;
-  font-size: 9.5px;
-  font-weight: 800;
-  box-shadow: 0 8px 20px rgba(9, 39, 20, 0.18);
-  white-space: nowrap;
-}
-.dbm-hero-chip svg { color: #21834b; }
-.chip-a { left: 2%; top: 18%; }
-.chip-b { right: 1%; bottom: 12%; }
-
 .dbm-kpis {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -613,7 +490,6 @@
   .dbm-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dbm-skeleton-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dbm-stock-map { grid-template-columns: minmax(0, 1.35fr) minmax(270px, 1fr); }
-  .dbm-hero-visual { flex-basis: 350px; }
 }
 @media (max-width: 980px) {
   .dbm-stock-map { grid-template-columns: minmax(0, 1fr); }
@@ -621,19 +497,10 @@
   .dbm-bottom { grid-template-columns: minmax(0, 1fr); }
   .dbm-compare-body { grid-template-columns: minmax(0, 1fr); }
   .dbm-compare-summary { border-right: 0; border-bottom: 1px solid #edf1e9; }
-  .dbm-hero { flex-direction: column; align-items: flex-start; gap: 10px; }
-  /* In a column the 480px basis would become a height. */
-  .dbm-hero-copy { flex: 0 0 auto; width: 100%; }
-  .dbm-hero-visual { width: 100%; flex-basis: auto; min-width: 0; }
-  .dbm-hero-art { width: min(440px, 100%); }
 }
 @media (max-width: 640px) {
   .dbm-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .dbm-skeleton-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .dbm-hero { padding: 20px; border-radius: 16px; }
-  .dbm-hero h2 { font-size: 28px; }
-  .dbm-hero p { font-size: 11.5px; }
-  .dbm-hero-visual { display: none; }
   .dbm-kpi { padding: 13px 14px; }
   /* Two per row: stack icon over text and pin the arrow so labels don't wrap. */
   .dbm-kpi { position: relative; flex-direction: column; align-items: flex-start; gap: 8px; }

@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -39,12 +40,13 @@ def latest_price_rows(
     """Return the latest and previous price for each (market, crop) pair."""
     query = db.query(MarketPrice)
     if crop_names:
-        query = query.filter(MarketPrice.crop_name.in_(crop_names))
+        normalized_names = [name.strip().lower() for name in crop_names if name.strip()]
+        query = query.filter(func.lower(func.trim(MarketPrice.crop_name)).in_(normalized_names))
     rows = query.order_by(MarketPrice.observed_at.desc(), MarketPrice.id.desc()).all()
 
     grouped: dict[tuple[int, str], list[MarketPrice]] = {}
     for row in rows:
-        key = (row.market_id, row.crop_name.lower())
+        key = (row.market_id, row.crop_name.strip().lower())
         grouped.setdefault(key, []).append(row)
 
     result = []
@@ -78,7 +80,7 @@ def build_comparison(
     crop_key = crop_name.strip().lower()
     prices = (
         db.query(MarketPrice)
-        .filter(MarketPrice.crop_name.ilike(crop_key))
+        .filter(func.lower(func.trim(MarketPrice.crop_name)) == crop_key)
         .order_by(MarketPrice.observed_at.desc(), MarketPrice.id.desc())
         .all()
     )

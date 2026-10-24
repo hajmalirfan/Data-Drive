@@ -8,7 +8,7 @@ import DriverDashboard from './DriverDashboard'
 import AdminDashboard from './AdminDashboard'
 import './Dashboard.css'
 import { useLanguage } from '../context/LanguageContext'
-import { formatIndiaDate, formatIndiaDateTime, getIndiaHour } from '../utils/dateTime'
+import { formatIndiaDate, formatIndiaDateTime } from '../utils/dateTime'
 
 const inr = (value) =>
   value === null || value === undefined
@@ -65,54 +65,6 @@ function Trend({ value }) {
   return <span className="ui-trend-flat">0.0%</span>
 }
 
-function HeroArt() {
-  return (
-    <svg viewBox="0 0 440 210" className="dbm-hero-art" aria-hidden="true">
-      <defs>
-        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#f7fbf1" />
-          <stop offset="100%" stopColor="#e2f0d8" />
-        </linearGradient>
-        <linearGradient id="field" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#9bce81" />
-          <stop offset="100%" stopColor="#69ae5a" />
-        </linearGradient>
-      </defs>
-      <rect x="8" y="8" width="424" height="194" rx="26" fill="url(#sky)" />
-      <circle cx="345" cy="55" r="28" fill="#f7d47b" opacity="0.92" />
-      <circle cx="345" cy="55" r="40" fill="#f7d47b" opacity="0.16" />
-      <path d="M8 130c52-36 92-36 139-3 36 25 75 25 110-1 48-37 98-37 175 7v69H8z" fill="#cfe5bd" />
-      <path d="M8 153c60-27 110-20 152 1 44 22 82 18 119-4 36-21 72-21 161 16v36H8z" fill="url(#field)" />
-      <path d="M42 210c35-33 78-52 123-63M96 210c30-26 65-41 103-50M150 210c29-21 62-33 97-39M206 210c29-16 63-24 98-25" stroke="#4b9645" strokeWidth="2.4" strokeLinecap="round" opacity="0.42" fill="none" />
-      <path d="M8 112c31-19 58-23 84-12 26 11 44 9 66-4" stroke="#bbd9a7" strokeWidth="5" strokeLinecap="round" fill="none" opacity="0.6" />
-      <g transform="translate(108 98)">
-        <rect x="0" y="14" width="72" height="36" rx="7" fill="#fff" />
-        <rect x="8" y="21" width="26" height="16" rx="4" fill="#a9d3b4" />
-        <path d="M72 26h20l14 13v11H72z" fill="#2f8d53" />
-        <rect x="78" y="30" width="15" height="9" rx="2.5" fill="#cbe7d5" />
-        <circle cx="22" cy="52" r="9" fill="#234434" />
-        <circle cx="22" cy="52" r="3.6" fill="#d7e7da" />
-        <circle cx="88" cy="52" r="9" fill="#234434" />
-        <circle cx="88" cy="52" r="3.6" fill="#d7e7da" />
-        <rect x="6" y="32" width="5" height="9" rx="2" fill="#f2c96b" />
-      </g>
-      <g fill="#2f7b45">
-        <path d="M290 148c0-16 10-27 25-30-2 17-11 28-25 30z" />
-        <path d="M290 148c-10-9-12-20-6-32 11 9 13 21 6 32z" />
-        <path d="M290 148c15-2 25-10 28-24-14 1-23 9-28 24z" opacity="0.8" />
-      </g>
-      <path d="M290 150v22" stroke="#2f7b45" strokeWidth="2.4" strokeLinecap="round" />
-      <g fill="#ffffff" opacity="0.8">
-        <circle cx="52" cy="48" r="2" />
-        <circle cx="68" cy="38" r="1.5" />
-        <circle cx="86" cy="54" r="1.5" />
-        <circle cx="180" cy="42" r="2" />
-        <circle cx="205" cy="60" r="1.4" />
-      </g>
-    </svg>
-  )
-}
-
 function MarketMap({ markets }) {
   const { t } = useLanguage()
   const points = useMemo(() => {
@@ -166,8 +118,7 @@ function MarketMap({ markets }) {
 }
 
 function FarmerDashboard() {
-  const { t, statusLabel, roleLabel } = useLanguage()
-  const { user } = useAuth()
+  const { t, statusLabel } = useLanguage()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -175,12 +126,14 @@ function FarmerDashboard() {
   const [quantity, setQuantity] = useState('')
   const [comparison, setComparison] = useState(null)
   const [comparing, setComparing] = useState(false)
+  const [comparisonError, setComparisonError] = useState('')
   const [showAssumptions, setShowAssumptions] = useState(false)
   const [driverTruck, setDriverTruck] = useState(null)
 
   const load = () => {
     setLoading(true)
     setError('')
+    setComparisonError('')
     getDashboard()
       .then((payload) => {
         setData(payload)
@@ -188,7 +141,11 @@ function FarmerDashboard() {
         if (top) {
           setSelectedCropId(String(top.id))
           setQuantity(String(top.quantity_kg))
-          setComparison(payload.comparison)
+          setComparison(payload.comparison || null)
+        } else {
+          setSelectedCropId('')
+          setQuantity('')
+          setComparison(payload.comparison || null)
         }
       })
       .catch((err) => setError(err.response?.data?.detail || t('dash.loadError')))
@@ -198,29 +155,32 @@ function FarmerDashboard() {
   useEffect(() => { load() }, []) // eslint-disable-line
 
   useEffect(() => {
-    if (!selectedCropId || !quantity || Number(quantity) <= 0) return
     let active = true
+    if (!selectedCropId || !quantity || Number(quantity) <= 0) {
+      setComparing(false)
+      setComparisonError('')
+      return () => { active = false }
+    }
+
     setComparing(true)
+    setComparisonError('')
     const timer = setTimeout(() => {
       compareMarkets({ crop_id: Number(selectedCropId), quantity: Number(quantity) })
         .then((payload) => { if (active) setComparison(payload) })
-        .catch(() => {})
+        .catch((err) => {
+          if (!active) return
+          setComparison(null)
+          const detail = err.response?.data?.detail
+          setComparisonError(typeof detail === 'string' ? detail : t('dash.loadError'))
+        })
         .finally(() => { if (active) setComparing(false) })
     }, 320)
     return () => {
       active = false
       clearTimeout(timer)
     }
-  }, [selectedCropId, quantity])
+  }, [selectedCropId, quantity, t])
 
-  const greeting = (() => {
-    const hour = getIndiaHour()
-    if (hour < 12) return t('dash.greetingMorning')
-    if (hour < 17) return t('dash.greetingAfternoon')
-    return t('dash.greetingEvening')
-  })()
-
-  const firstName = (user?.full_name || 'farmer').split(' ')[0]
   const stats = data?.stats || {}
   const crops = data?.crops || []
   const markets = data?.markets || []
@@ -269,28 +229,6 @@ function FarmerDashboard() {
 
   return (
     <div className="dbm ui-page">
-      <section className="dbm-hero">
-        <div className="dbm-hero-copy">
-          <span className="dbm-eyebrow">{greeting}, {firstName}</span>
-          <h2>{t('dash.heroTitle1')}<br /><em>{t('dash.heroTitle2')}</em></h2>
-          <p>
-            Compare mandis, book a truck and track every kilogram from your field to the market.
-            All prices below are live records entered by market managers.
-          </p>
-          <div className="dbm-hero-actions">
-            <Link to="/markets" className="dbm-hero-btn">
-              Find best market <Icon name="arrowRight" size={15} />
-            </Link>
-            <Link to="/trucks" className="dbm-hero-link">{t('dash.bookTruck')}</Link>
-          </div>
-        </div>
-        <div className="dbm-hero-visual">
-          <HeroArt />
-          <span className="dbm-hero-chip chip-a"><Icon name="prices" size={13} />{t('login.benefitPrices')}</span>
-          <span className="dbm-hero-chip chip-b"><Icon name="truck" size={13} />{t('dash.chipTransport')}</span>
-        </div>
-      </section>
-
       <section className="dbm-kpis" aria-label={t('dash.keyNumbers')}>
         <Link to="/crops" className="dbm-kpi ui-card">
           <span className="dbm-kpi-icon green"><Icon name="package" size={19} /></span>
@@ -454,6 +392,8 @@ function FarmerDashboard() {
             </label>
           </div>
         </div>
+
+        {comparisonError && <div className="ui-alert ui-alert-error" role="alert">{comparisonError}</div>}
 
         <div className="dbm-compare-body">
           <div className="dbm-compare-summary">
