@@ -231,6 +231,7 @@ agri-project/frontend/.env
 node_modules/
 agri-project/frontend/dist/
 agri-project/frontend/dist-ssr/
+agri-project/frontend/.vite/
 *.local
 npm-debug.log*
 yarn-debug.log*

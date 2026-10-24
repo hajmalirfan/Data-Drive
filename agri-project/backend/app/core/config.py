@@ -35,8 +35,14 @@ class Settings(BaseSettings):
     OTP_MAX_ATTEMPTS: int = 5
     RESET_TOKEN_EXPIRE_MINUTES: int = 15
 
+    # Default admin account (created on startup if missing). Admin sign-in
+    # always requires an emailed OTP after the password check.
+    ADMIN_EMAIL: str = ""
+    ADMIN_DEFAULT_PASSWORD: str = ""
+    ADMIN_NAME: str = "Admin"
+
     # Mailtrap Email Sending API (takes priority when the token is set)
-    MAILTRAP_API_TOKEN: str = "77a58208f2e3d0a4c310f600c64bad43"
+    MAILTRAP_API_TOKEN: str = ""
     MAILTRAP_API_URL: str = "https://send.api.mailtrap.io/api/send"
     MAILTRAP_FROM_EMAIL: str = "SmartAgopsAdvisor@demomailtrap.co"
     MAILTRAP_FROM_NAME: str = "SmartAg Ops Advisor"

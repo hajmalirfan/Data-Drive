@@ -56,6 +56,26 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     user: UserOut
 
+class LoginResponse(BaseModel):
+    """Either a session (access_token + user) or, for admins, an OTP challenge."""
+    access_token: str | None = None
+    token_type: str = "bearer"
+    user: UserOut | None = None
+    otp_required: bool = False
+    login_token: str | None = None
+    otp_email: str | None = None
+    expires_in: int | None = None
+    resend_in: int | None = None
+    # Only populated when no email provider is configured (local development).
+    debug_otp: str | None = None
+
+class AdminOtpVerifyRequest(BaseModel):
+    login_token: str = Field(min_length=10)
+    otp: str = Field(min_length=4, max_length=8, pattern=r"^\d{4,8}$")
+
+class AdminOtpResendRequest(BaseModel):
+    login_token: str = Field(min_length=10)
+
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 

@@ -1,10 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import LanguageSelector from '../components/LanguageSelector'
 import BrandLogo from '../components/BrandLogo'
 import Icon from '../components/Icons'
-import { login as apiLogin, signup as apiSignup } from '../services/authService'
+import {
+  login as apiLogin,
+  signup as apiSignup,
+  verifyAdminLoginOtp,
+  resendAdminLoginOtp,
+} from '../services/authService'
 import farmerImage from '../assets/farmer-logo.jpg'
 import './Login.css'
 import { useLanguage } from '../context/LanguageContext'
@@ -29,13 +34,71 @@ export default function Login() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+  // Admin sign-in second step: { login_token, otp_email, expires_in, resend_in, debug_otp }
+  const [otpChallenge, setOtpChallenge] = useState(null)
+  const [otp, setOtp] = useState('')
+  const [cooldown, setCooldown] = useState(0)
   const { saveAuth } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const timer = setTimeout(() => setCooldown((value) => Math.max(0, value - 1)), 1000)
+    return () => clearTimeout(timer)
+  }, [cooldown])
 
   const switchMode = (next) => {
     setMode(next)
     setError('')
     setSuccess('')
+  }
+
+  const startOtpStep = (data) => {
+    setOtpChallenge(data)
+    setOtp('')
+    setCooldown(data.resend_in || 60)
+  }
+
+  const cancelOtpStep = () => {
+    setOtpChallenge(null)
+    setOtp('')
+    setPassword('')
+    setError('')
+    setSuccess('')
+  }
+
+  const handleVerifyOtp = async (event) => {
+    event.preventDefault()
+    setError('')
+    setSuccess('')
+    if (!/^\d{4,8}$/.test(otp.trim())) {
+      setError(t('login.errOtp'))
+      return
+    }
+    setLoading(true)
+    try {
+      const data = await verifyAdminLoginOtp(otpChallenge.login_token, otp.trim())
+      saveAuth(data)
+      navigate('/dashboard', { replace: true })
+    } catch (err) {
+      setError(err.response?.data?.detail || t('login.errVerify'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleResendOtp = async () => {
+    setError('')
+    setSuccess('')
+    setLoading(true)
+    try {
+      startOtpStep(await resendAdminLoginOtp(otpChallenge.login_token))
+      setSuccess(t('login.resendSent'))
+    } catch (err) {
+      setError(err.response?.data?.detail || t('login.errForgot'))
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSignin = async (event) => {
@@ -53,6 +116,10 @@ export default function Login() {
     setLoading(true)
     try {
       const data = await apiLogin(identifier.trim(), password)
+      if (data.otp_required) {
+        startOtpStep(data)
+        return
+      }
       saveAuth(data)
       navigate('/dashboard', { replace: true })
     } catch (err) {
@@ -137,6 +204,63 @@ export default function Login() {
             <span className="auth-card-brand">{t('brand')}<small>{t('appTagline')}</small></span>
           </div>
 
+          {otpChallenge ? (
+            <>
+              <div className="auth-heading">
+                <h2>{t('login.adminOtpTitle')}</h2>
+                <p>{t('login.otpSub', [otpChallenge.otp_email, Math.max(1, Math.round((otpChallenge.expires_in || 600) / 60))])}</p>
+              </div>
+              <form className="auth-form" onSubmit={handleVerifyOtp} noValidate>
+                <label className="auth-field">
+                  <span className="auth-label">{t('login.otpLabel')}<span className="auth-required">*</span></span>
+                  <span className="auth-input auth-otp-input">
+                    <span className="auth-input-icon"><Icon name="shield" size={16} /></span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      autoFocus
+                      maxLength={6}
+                      placeholder={t('login.otpPlaceholder')}
+                      value={otp}
+                      onChange={(event) => setOtp(event.target.value.replace(/\D/g, ''))}
+                    />
+                  </span>
+                </label>
+
+                {otpChallenge.debug_otp && (
+                  <div className="ui-alert ui-alert-info" role="status">
+                    {t('login.devOtp', [otpChallenge.debug_otp])}
+                  </div>
+                )}
+                {success && <div className="ui-alert ui-alert-info" role="status">{success}</div>}
+                {error && <div className="ui-alert ui-alert-error" role="alert">{error}</div>}
+
+                <button type="submit" className="auth-submit" disabled={loading}>
+                  {loading && <span className="ui-spinner" style={{ width: 17, height: 17, borderColor: 'rgba(255,255,255,0.35)', borderTopColor: '#fff' }} />}
+                  {loading ? t('login.verifying') : t('login.verifyOtp')}
+                  {!loading && <Icon name="arrowRight" size={16} />}
+                </button>
+
+                <div className="auth-resend">
+                  <span>{t('login.noCode')}</span>
+                  <button
+                    type="button"
+                    className="auth-forgot"
+                    disabled={cooldown > 0 || loading}
+                    onClick={handleResendOtp}
+                  >
+                    {cooldown > 0 ? t('login.resendIn', [cooldown]) : t('login.resendOtp')}
+                  </button>
+                </div>
+
+                <p className="auth-switch">
+                  <button type="button" onClick={cancelOtpStep}>{t('login.backToSignIn')}</button>
+                </p>
+              </form>
+            </>
+          ) : (
+          <>
           <div className="auth-heading">
             <h2>{mode === 'signin' ? t('login.welcomeBack') : t('login.createAccountTitle')}</h2>
             <p>{mode === 'signin' ? t('login.signinSub') : t('login.signupSub')}</p>
@@ -323,6 +447,8 @@ export default function Login() {
                 <button type="button" onClick={() => switchMode('signin')}>{t('login.signInLink')}</button>
               </p>
             </form>
+          )}
+          </>
           )}
         </div>
       </section>

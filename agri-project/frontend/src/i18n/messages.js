@@ -180,6 +180,7 @@ export const MESSAGES = {
   'login.sendOtp': 'Send verification code',
   'login.sendingOtp': 'Sending code...',
   'login.otpTitle': 'Enter verification code',
+  'login.adminOtpTitle': 'Admin verification',
   'login.otpSub': 'We sent a 6-digit code to <0>. It expires in <1> minutes.',
   'login.otpLabel': 'One-time code',
   'login.otpPlaceholder': '6-digit code',

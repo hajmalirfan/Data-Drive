@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.email import send_password_reset_email, email_configured
+from app.core.email import send_admin_login_email, send_password_reset_email, email_configured
 from app.core.security import (
     hash_password,
     verify_password,
@@ -17,12 +17,16 @@ from app.core.security import (
     hash_otp,
     otp_matches,
 )
+from app.models.login_otp import AdminLoginOTP
 from app.models.password_reset import PasswordResetOTP
 from app.models.user import User, VALID_ROLES
 from app.schemas.user import (
     UserSignup,
     UserLogin,
     TokenResponse,
+    LoginResponse,
+    AdminOtpVerifyRequest,
+    AdminOtpResendRequest,
     UserOut,
     UserProfileUpdate,
     UserRoleUpdate,
@@ -35,11 +39,15 @@ from app.schemas.user import (
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+# Public sign-up is limited to these roles; admins are provisioned on startup.
+SIGNUP_ROLES = ("farmer", "truck_operator")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     payload = decode_token(token)
-    if not payload or "sub" not in payload:
+    # Purpose tokens (password reset, admin OTP challenge) are not sessions.
+    if not payload or "sub" not in payload or payload.get("purpose"):
         raise HTTPException(status_code=401, detail="Invalid token")
     user = db.query(User).filter(User.email == payload["sub"]).first()
     if not user:
@@ -84,8 +92,8 @@ def normalize_phone(value: str | None) -> str | None:
 @router.post("/signup", response_model=TokenResponse, status_code=201)
 def signup(data: UserSignup, db: Session = Depends(get_db)):
     role = (data.role or "farmer").lower().strip()
-    if role not in VALID_ROLES:
-        raise HTTPException(status_code=400, detail=f"Invalid role. Choose from: {', '.join(VALID_ROLES)}")
+    if role not in SIGNUP_ROLES:
+        raise HTTPException(status_code=400, detail=f"Invalid role. Choose from: {', '.join(SIGNUP_ROLES)}")
     if len(data.password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
 
@@ -116,7 +124,91 @@ def signup(data: UserSignup, db: Session = Depends(get_db)):
     token = create_access_token({"sub": user.email, "role": user.role})
     return {"access_token": token, "token_type": "bearer", "user": user}
 
-@router.post("/login", response_model=TokenResponse)
+def mask_email(email: str) -> str:
+    local, _, domain = email.partition("@")
+    visible = local[:2] if len(local) > 2 else local[:1]
+    return f"{visible}{'*' * max(1, len(local) - len(visible))}@{domain}"
+
+
+def send_admin_login_otp(user: User, db: Session) -> dict:
+    """Email a fresh sign-in OTP to an admin and return the challenge payload."""
+    email = user.email
+    now = datetime.utcnow()
+
+    db.query(AdminLoginOTP).filter(
+        AdminLoginOTP.expires_at < now - timedelta(days=1)
+    ).delete(synchronize_session=False)
+
+    latest = (
+        db.query(AdminLoginOTP)
+        .filter(
+            AdminLoginOTP.email == email,
+            AdminLoginOTP.consumed.is_(False),
+            AdminLoginOTP.expires_at > now,
+        )
+        .order_by(AdminLoginOTP.created_at.desc(), AdminLoginOTP.id.desc())
+        .first()
+    )
+    if latest and latest.created_at:
+        elapsed = (now - latest.created_at).total_seconds()
+        if elapsed < settings.OTP_RESEND_SECONDS:
+            wait = max(1, math.ceil(settings.OTP_RESEND_SECONDS - elapsed))
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Please wait {wait} seconds before requesting a new code.",
+            )
+
+    db.query(AdminLoginOTP).filter(
+        AdminLoginOTP.email == email,
+        AdminLoginOTP.consumed.is_(False),
+    ).update({AdminLoginOTP.consumed: True}, synchronize_session=False)
+
+    otp = generate_otp()
+    db.add(
+        AdminLoginOTP(
+            email=email,
+            otp_hash=hash_otp(email, otp),
+            expires_at=now + timedelta(minutes=settings.OTP_EXPIRE_MINUTES),
+        )
+    )
+    sent = send_admin_login_email(email, user.full_name, otp, settings.OTP_EXPIRE_MINUTES)
+    if email_configured() and not sent:
+        # Don't keep a code nobody received, so the resend cooldown doesn't block a retry.
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Could not send the verification code. Please try again.",
+        )
+    db.commit()
+
+    login_token = create_access_token(
+        {"sub": email, "purpose": "admin_login"},
+        expires_delta=timedelta(minutes=settings.OTP_EXPIRE_MINUTES),
+    )
+    return {
+        "otp_required": True,
+        "login_token": login_token,
+        "otp_email": mask_email(email),
+        "expires_in": settings.OTP_EXPIRE_MINUTES * 60,
+        "resend_in": settings.OTP_RESEND_SECONDS,
+        "debug_otp": None if email_configured() else otp,
+    }
+
+
+def admin_from_login_token(login_token: str, db: Session) -> User:
+    payload = decode_token(login_token)
+    if not payload or payload.get("purpose") != "admin_login" or not payload.get("sub"):
+        raise HTTPException(
+            status_code=400,
+            detail="This sign-in session has expired. Please sign in again.",
+        )
+    user = db.query(User).filter(User.email == str(payload["sub"]).lower()).first()
+    if not user or user.role != "admin":
+        raise HTTPException(status_code=400, detail="This sign-in session is no longer valid.")
+    return user
+
+
+@router.post("/login", response_model=LoginResponse)
 def login(data: UserLogin, db: Session = Depends(get_db)):
     identifier = (data.identifier or data.email or data.phone or "").strip()
     if not identifier:
@@ -134,8 +226,54 @@ def login(data: UserLogin, db: Session = Depends(get_db)):
         user.role = "farmer"
         db.commit()
         db.refresh(user)
+    if user.role == "admin":
+        return send_admin_login_otp(user, db)
     token = create_access_token({"sub": user.email, "role": user.role})
     return {"access_token": token, "token_type": "bearer", "user": user}
+
+
+@router.post("/login/verify-otp", response_model=TokenResponse)
+def verify_admin_login_otp(data: AdminOtpVerifyRequest, db: Session = Depends(get_db)):
+    """Second step of admin sign-in: check the emailed code and issue the session."""
+    user = admin_from_login_token(data.login_token, db)
+    now = datetime.utcnow()
+
+    record = (
+        db.query(AdminLoginOTP)
+        .filter(
+            AdminLoginOTP.email == user.email,
+            AdminLoginOTP.consumed.is_(False),
+            AdminLoginOTP.expires_at > now,
+        )
+        .order_by(AdminLoginOTP.created_at.desc(), AdminLoginOTP.id.desc())
+        .first()
+    )
+    if not record:
+        raise HTTPException(
+            status_code=400,
+            detail="This code is invalid or has expired. Request a new one.",
+        )
+    if record.attempts >= settings.OTP_MAX_ATTEMPTS:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many incorrect attempts. Request a new code.",
+        )
+    if not otp_matches(user.email, data.otp, record.otp_hash):
+        record.attempts += 1
+        db.commit()
+        raise HTTPException(status_code=400, detail="Incorrect verification code.")
+
+    record.consumed = True
+    db.commit()
+    token = create_access_token({"sub": user.email, "role": user.role})
+    return {"access_token": token, "token_type": "bearer", "user": user}
+
+
+@router.post("/login/resend-otp", response_model=LoginResponse)
+def resend_admin_login_otp(data: AdminOtpResendRequest, db: Session = Depends(get_db)):
+    user = admin_from_login_token(data.login_token, db)
+    return send_admin_login_otp(user, db)
+
 
 @router.post("/forgot-password", response_model=ForgotPasswordResponse)
 def forgot_password(data: ForgotPasswordRequest, db: Session = Depends(get_db)):

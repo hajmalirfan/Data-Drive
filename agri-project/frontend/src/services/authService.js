@@ -23,6 +23,12 @@ export const signup = (payload) =>
 export const login = (identifier, password) =>
   api.post('/api/auth/login', { identifier, password }).then((r) => r.data)
 
+export const verifyAdminLoginOtp = (loginToken, otp) =>
+  api.post('/api/auth/login/verify-otp', { login_token: loginToken, otp }).then((r) => r.data)
+
+export const resendAdminLoginOtp = (loginToken) =>
+  api.post('/api/auth/login/resend-otp', { login_token: loginToken }).then((r) => r.data)
+
 export const forgotPassword = (email) =>
   api.post('/api/auth/forgot-password', { email }).then((r) => r.data)
 
