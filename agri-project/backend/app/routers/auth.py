@@ -19,8 +19,17 @@ from app.core.security import (
     otp_matches,
 )
 from app.models.login_otp import AdminLoginOTP
-from app.models.operations import Truck
+from app.models.chat import ChatMessage, Conversation
+from app.models.operations import (
+    Booking,
+    BookingLocationPoint,
+    CropStock,
+    MarketPrice,
+    Notification,
+    Truck,
+)
 from app.models.password_reset import PasswordResetOTP
+from app.models.user_document import UserDocument
 from app.models.user import User, VALID_ROLES
 from app.schemas.user import (
     UserSignup,
@@ -582,16 +591,36 @@ def delete_user(user_id: int, request: Request, db: Session = Depends(get_db), a
         raise HTTPException(status_code=404, detail="User not found")
     if user.role == "admin" and db.query(User).filter(User.role == "admin").count() <= 1:
         raise HTTPException(status_code=400, detail="At least one admin account must remain")
+    deleted_role = user.role
 
-    # Unlinked trucks must not stay bookable without an operator.
+    # Remove user-owned records explicitly so deletion also works on databases
+    # whose existing tables predate the current ON DELETE rules.
+    booking_ids = db.query(Booking.id).filter(Booking.farmer_id == user.id)
+    db.query(BookingLocationPoint).filter(BookingLocationPoint.booking_id.in_(booking_ids)).delete(
+        synchronize_session=False
+    )
+    db.query(Booking).filter(Booking.farmer_id == user.id).delete(synchronize_session=False)
+    db.query(CropStock).filter(CropStock.owner_id == user.id).delete(synchronize_session=False)
+    conversation_ids = db.query(Conversation.id).filter(Conversation.user_id == user.id)
+    db.query(ChatMessage).filter(ChatMessage.conversation_id.in_(conversation_ids)).delete(
+        synchronize_session=False
+    )
+    db.query(Conversation).filter(Conversation.user_id == user.id).delete(synchronize_session=False)
+    db.query(Notification).filter(Notification.user_id == user.id).delete(synchronize_session=False)
+    db.query(UserDocument).filter(UserDocument.user_id == user.id).delete(synchronize_session=False)
+
+    # Keep published prices and trucks, but remove their link to the deleted user.
+    db.query(MarketPrice).filter(MarketPrice.created_by == user.id).update(
+        {MarketPrice.created_by: None}, synchronize_session=False
+    )
     db.query(Truck).filter(Truck.operator_id == user.id).update(
-        {Truck.status: "inactive"}, synchronize_session=False
+        {Truck.operator_id: None, Truck.status: "inactive"}, synchronize_session=False
     )
     db.query(PasswordResetOTP).filter(PasswordResetOTP.email == user.email).delete(synchronize_session=False)
     db.query(AdminLoginOTP).filter(AdminLoginOTP.email == user.email).delete(synchronize_session=False)
     db.query(User).filter(User.id == user.id).delete(synchronize_session=False)
     db.commit()
-    audit("user_deleted", request, admin_id=admin.id, user_id=user_id, role=user.role)
+    audit("user_deleted", request, admin_id=admin.id, user_id=user_id, role=deleted_role)
     return Response(status_code=204)
 
 

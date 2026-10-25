@@ -366,7 +366,7 @@ def reports_summary(
         "markets": {
             "count": db.query(Market).count(),
             "price_records": db.query(MarketPrice).count(),
-            "stale_prices": len([price for price in prices if price.is_stale]),
+            "stale_prices": sum(bool(getattr(price, "is_stale", False)) for price in prices),
             "prices": prices,
         },
         "recent_bookings": [booking_out(booking, user) for booking in bookings[:5]],
