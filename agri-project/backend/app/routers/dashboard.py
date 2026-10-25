@@ -366,7 +366,11 @@ def reports_summary(
         "markets": {
             "count": db.query(Market).count(),
             "price_records": db.query(MarketPrice).count(),
-            "stale_prices": sum(bool(getattr(price, "is_stale", False)) for price in prices),
+            # Government prices are dicts; published prices are PriceOut models.
+            "stale_prices": sum(
+                bool(price.get("is_stale") if isinstance(price, dict) else price.is_stale)
+                for price in prices
+            ),
             "prices": prices,
         },
         "recent_bookings": [booking_out(booking, user) for booking in bookings[:5]],
