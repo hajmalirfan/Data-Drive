@@ -50,7 +50,7 @@ Without `VITE_DEMO_MODE=true` the full application runs as before, and the compa
 | Add Vedasandur, Batlagundu, Nilakottai or Natham | Listed under "Not ranked" with the reason |
 | Quantity 0 | Field error, no result |
 
-API: `POST /api/auth/guest`, `GET /api/decision/options`, `POST /api/decision/compare`. All calculation rules are in `backend/app/services/decision_engine.py`. Tests: `python -m pytest -v` in `agri-project/backend` (acceptance tests AT-01 to AT-18 plus API tests for every result state).
+API: `POST /api/auth/guest`, `GET /api/decision/options`, `POST /api/decision/compare`. All calculation rules are in `backend/app/services/decision_engine.py`. Tests: `python -m pytest -v` in `agri-project/backend` (acceptance tests AT-01 to AT-18 plus API tests for every result state). GitHub Actions (`.github/workflows/ci.yml`) runs these tests on Python 3.12, the frontend build, and a gitleaks secret scan on every pull request and every push to `main`.
 
 Settings (backend `.env`): `DECISION_DATA_MODE` (`sample` | `snapshot`), `DECISION_AS_OF` (the date freshness is judged against; empty means 25 Oct 2026 in sample mode and today in IST in snapshot mode), `DECISION_FRESHNESS_DAYS`, `DECISION_TIE_BAND_FLOOR`, `DECISION_TIE_BAND_PCT`, `DECISION_SEED_ON_START`, `GUEST_TOKEN_MINUTES`.
 
