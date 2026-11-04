@@ -17,6 +17,7 @@ from app.schemas.operations import (
     BookingTrackOut,
     TrackPoint,
 )
+from app.services.trip_pooling import ACTIVE_STATUSES, trip_fare_for
 
 router = APIRouter(prefix="/api/bookings", tags=["bookings"])
 
@@ -30,7 +31,6 @@ BOOKING_STATUSES = {
     "delivered",
     "cancelled",
 }
-ACTIVE_STATUSES = {"requested", "accepted", "assigned", "picked_up", "in_transit"}
 TERMINAL_STATUSES = {"rejected", "delivered", "cancelled"}
 
 ALLOWED_TRANSITIONS = {
@@ -70,7 +70,15 @@ def booking_out(booking: Booking, user: User) -> BookingOut:
             or (booking.truck and booking.truck.operator_id == user.id)
         )
     )
+    trip = booking.trip_membership.trip if booking.trip_membership else None
     return BookingOut(
+        shared_trip_id=trip.id if trip else None,
+        # Members still on the trip, including delivered ones, so a finished trip keeps its count.
+        shared_trip_member_count=(
+            sum(1 for member in trip.members if member.booking.status not in {"cancelled", "rejected"})
+            if trip else None
+        ),
+        shared_trip_fare=trip.trip_fare if trip else None,
         id=booking.id,
         farmer_id=booking.farmer_id,
         farmer_name=booking.farmer.full_name if booking.farmer else "",
@@ -174,6 +182,14 @@ def create_booking(
     db: Session = Depends(get_db),
     user: User = Depends(require_farmer),
 ):
+    booking = _create_booking(db, user, data)
+    db.commit()
+    db.refresh(booking)
+    return booking_out(booking, user)
+
+
+def _create_booking(db: Session, user: User, data: BookingCreate) -> Booking:
+    """Validate and add a booking plus its two notifications. Flushes; the caller commits."""
     truck = db.query(Truck).filter(Truck.id == data.truck_id).first()
     if not truck:
         raise HTTPException(status_code=404, detail="Truck not found")
@@ -209,7 +225,7 @@ def create_booking(
 
     distance = market.distance_km
     eta = market.eta_minutes
-    transport_cost = truck.base_fare + distance * truck.price_per_km
+    transport_cost = trip_fare_for(truck, market)
 
     estimated_net = None
     if crop:
@@ -254,9 +270,7 @@ def create_booking(
         f"Your request for {truck.vehicle_number} to {market.name} is pending operator confirmation.",
         "/bookings",
     )
-    db.commit()
-    db.refresh(booking)
-    return booking_out(booking, user)
+    return booking
 
 
 @router.patch("/{booking_id}/status", response_model=BookingOut)

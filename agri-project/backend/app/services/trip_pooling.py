@@ -6,6 +6,11 @@ ACTIVE_STATUSES = {"requested", "accepted", "assigned", "picked_up", "in_transit
 STARTED_STATUSES = {"picked_up", "in_transit", "delivered"}
 
 
+def trip_fare_for(truck, market) -> float:
+    """The one-trip fare for a truck to a market (the formula bookings have always used)."""
+    return round(truck.base_fare + market.distance_km * truck.price_per_km, 2)
+
+
 def split_fare(fare: float, loads: dict[int, float]) -> dict[int, float]:
     """Split `fare` by kg: {booking_id: kg} -> {booking_id: share}, summing exactly to `fare`."""
     if not loads:
