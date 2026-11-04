@@ -11,6 +11,15 @@ SmartAg Ops Advisor is a full-stack agriculture operations platform for comparin
 - Live location sharing for active deliveries
 - Dashboard, reports, and notifications backed by database records
 - Multilingual UI support
+- Shared truck trips: growers going to the same market share one truck and split its fare
+
+## Shared Truck Trips
+
+Small growers often send a part load to market but pay for the whole truck. When booking a truck on the **Trucks** page, a farmer can tick **Open this trip to share** and name a shared pickup point. Other farmers find the trip under **Shared Trips** in the menu, see what their share would be, and join with their own kg. The truck operator still accepts each booking as usual.
+
+The trip fare is the normal one-trip fare (`base fare + distance × price per km`), fixed when the trip opens. Each farmer pays `fare × their kg ÷ total kg on the trip`, recalculated whenever someone joins, cancels or is rejected, and everyone whose share changes gets a notification. Example: a Rs 1,800 trip with 300 kg and 600 kg on board costs Rs 600 and Rs 1,200. Nobody ever pays more than the solo fare, and shares freeze once the truck picks up. The list of open trips shows counts and kg only; members see each other's first names. When the driver shares GPS on one booking, every farmer on the trip sees the truck.
+
+Design and plan: `docs/superpowers/specs/2026-11-04-shared-truck-trips-design.md`, `docs/superpowers/plans/2026-11-04-shared-truck-trips.md`. Tests: `python -m pytest tests/test_trip_pooling.py tests/test_shared_trips_api.py` in `agri-project/backend`.
 
 ## Tech Stack
 
@@ -134,6 +143,12 @@ The application starts with an empty operational database. Register a new accoun
 | GET/POST | `/api/prices` | List or publish market prices |
 | GET/POST | `/api/trucks` | List or register trucks |
 | GET/POST | `/api/bookings` | List or create bookings |
+| GET | `/api/shared-trips` | Open shared trips with space (`mine=true`: trips you are on) |
+| POST | `/api/shared-trips` | Book a truck and open the trip to share |
+| GET | `/api/shared-trips/{id}/quote` | Your share if you join with a given kg |
+| POST | `/api/shared-trips/{id}/join` | Join a shared trip (creates a booking) |
+| POST | `/api/shared-trips/{id}/close` | Opener stops new joiners |
+| GET | `/api/shared-trips/{id}` | Trip detail for members, the operator and admins |
 | GET | `/api/dashboard` | Dashboard summary |
 | GET | `/api/reports` | Operational reports |
 | GET | `/api/health` | Health check |
