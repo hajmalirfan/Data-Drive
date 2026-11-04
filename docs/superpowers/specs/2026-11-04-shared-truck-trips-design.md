@@ -73,8 +73,8 @@ Models go in a new `app/models/pooling.py`, registered in the `app.models` impor
 
 - `split_fare(fare: float, loads: dict[int, float]) -> dict[int, float]` — pure. Shares are rounded to 2 decimals; the rounding remainder is added to the largest load (lowest booking id on a tie) so shares sum exactly to `fare`. Empty `loads` returns `{}`. Non-positive kg is rejected with `ValueError`.
 - `active_members(db, trip) -> list[Booking]`
-- `space_left_kg(db, trip) -> float` — `truck.available_capacity_kg` minus the kg of member bookings still `requested` (accepted bookings are already subtracted from the truck by the existing accept logic).
-- `is_joinable(db, trip, now) -> str | None` — returns the reason a trip cannot be joined (`closed`, `started`, `past_pickup` when `pickup_at <= now`, `full` when no kg is left, `truck_unavailable` when the truck's status is not `available`) or `None`. Checked in that order.
+- `space_left_kg(trip) -> float` — `truck.available_capacity_kg` minus the kg of member bookings still `requested` (accepted bookings are already subtracted from the truck by the existing accept logic).
+- `is_joinable(trip, now) -> str | None` — returns the reason a trip cannot be joined (`closed`, `started`, `past_pickup` when `pickup_at <= now`, `full` when no kg is left, `truck_unavailable` when the truck's status is not `available`) or `None`. Checked in that order.
 - `recalculate(db, trip)` — applies `split_fare` to active members, writes `estimated_transport_cost`, notifies members whose share changed, and closes the trip when no active member remains. Does nothing once a member is picked up.
 - `trip_for_booking(db, booking) -> SharedTrip | None`
 
@@ -89,7 +89,7 @@ Models go in a new `app/models/pooling.py`, registered in the `app.models` impor
 
 | Method | Path | Body / query | Returns |
 |---|---|---|---|
-| GET | `` | `market_id` (optional) | Joinable trips: id, market, pickup point, pickup_at, truck type and capacity, kg booked, kg free, member count, trip fare, `is_member` |
+| GET | `` | `market_id` (optional); `mine=true` | Joinable trips: id, market, pickup point, pickup_at, truck type and capacity, kg booked, kg free, member count, trip fare, `is_member`. With `mine=true`: every trip (open or closed) where the user has a member booking, newest first. |
 | GET | `/{id}/quote` | `quantity_kg` | `{share, alone, saving}` using `split_fare` with the new load added |
 | POST | `` | booking fields + `pickup_point` | 201, the opener's booking and the trip |
 | POST | `/{id}/join` | `quantity_kg`, `crop_id` (optional), `notes` | 201, the new booking |
@@ -118,7 +118,8 @@ All new UI follows the existing patterns: `ui-page` → `ui-toolbar` → `ui-ale
 - `pages/SharedTrips.jsx` (+ `SharedTrips.css`), route `/shared-trips` inside the non-admin `ProtectedLayout`, menu entry for farmers (same roles as the Trucks menu entry), with a `TITLES` entry:
   - **Open trips:** one card per trip with a space-left bar and a Join button that opens an inline form (kg, optional crop stock) with a live quote, fetched at most every 400 ms while typing.
   - **My shared trips:** members' first names, kg and shares; the opener also sees "Close to new joiners".
-- `pages/Bookings.jsx`: a chip on bookings in a shared trip, "Shared trip · 3 farmers · your share Rs 450 of Rs 1,800", for both farmers and operators.
+- `pages/Bookings.jsx` (farmers): a chip on bookings in a shared trip, "Shared trip · 3 farmers · your share Rs 450 of Rs 1,800".
+- `pages/BookingRequests.jsx` (operators): the same chip, worded "Shared trip · 3 farmers", so the operator knows the requests belong together.
 - New keys in `i18n/messages.js`, then `node scripts/generate-translations.mjs`, checking that `<0>` placeholders survive and that no existing translation changes.
 
 ## 6. Testing
