@@ -1,4 +1,10 @@
 """Shared truck trips: fare split and trip rules. No FastAPI imports, so it is testable on its own."""
+from datetime import datetime, timezone
+
+from sqlalchemy.orm import Session
+
+from app.models.operations import Booking, Notification
+from app.models.pooling import SharedTrip
 
 # Booking statuses that still take space on the truck (also used by routers/bookings.py).
 ACTIVE_STATUSES = {"requested", "accepted", "assigned", "picked_up", "in_transit"}
@@ -23,3 +29,80 @@ def split_fare(fare: float, loads: dict[int, float]) -> dict[int, float]:
     largest = min(loads, key=lambda booking_id: (-loads[booking_id], booking_id))
     shares[largest] = round(shares[largest] + round(fare - sum(shares.values()), 2), 2)
     return shares
+
+
+def utc_naive(value: datetime) -> datetime:
+    """Naive UTC, the form the booking code compares against datetime.utcnow()."""
+    if value.tzinfo is not None:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
+
+
+def active_members(trip: SharedTrip) -> list[Booking]:
+    return [member.booking for member in trip.members if member.booking.status in ACTIVE_STATUSES]
+
+
+def is_started(trip: SharedTrip) -> bool:
+    return any(member.booking.status in STARTED_STATUSES for member in trip.members)
+
+
+def space_left_kg(trip: SharedTrip) -> float:
+    # Accepted bookings are already taken off the truck; requested ones still need room.
+    requested = sum(member.booking.quantity_kg for member in trip.members if member.booking.status == "requested")
+    return max(0.0, round(trip.truck.available_capacity_kg - requested, 2))
+
+
+def is_joinable(trip: SharedTrip, now: datetime) -> str | None:
+    """Why a trip takes no new members (closed, started, past_pickup, full, truck_unavailable), or None."""
+    if trip.status != "open":
+        return "closed"
+    if is_started(trip):
+        return "started"
+    if utc_naive(trip.pickup_at) <= now:
+        return "past_pickup"
+    if space_left_kg(trip) <= 0:
+        return "full"
+    if trip.truck.status != "available":
+        return "truck_unavailable"
+    return None
+
+
+def close_trip(trip: SharedTrip) -> None:
+    if trip.status == "open":
+        trip.status = "closed"
+        trip.closed_at = datetime.utcnow()
+
+
+def trip_for_booking(booking: Booking) -> SharedTrip | None:
+    return booking.trip_membership.trip if booking.trip_membership else None
+
+
+def first_name(user) -> str:
+    name = (user.full_name or "").strip()
+    return name.split()[0] if name else user.email.split("@")[0]
+
+
+def recalculate(db: Session, trip: SharedTrip, quiet_booking_id: int | None = None) -> None:
+    """Re-split the fare over active members and tell each member whose share changed."""
+    if is_started(trip):
+        return  # Shares freeze once the truck has picked up.
+    members = active_members(trip)
+    if not members:
+        close_trip(trip)
+        return
+    shares = split_fare(trip.trip_fare, {booking.id: booking.quantity_kg for booking in members})
+    for booking in members:
+        old, new = booking.estimated_transport_cost, shares[booking.id]
+        if old == new:
+            continue
+        booking.estimated_transport_cost = new
+        if booking.id != quiet_booking_id:
+            db.add(Notification(
+                user_id=booking.farmer_id,
+                title="Shared trip share updated",
+                message=(
+                    f"Your transport share for the trip to {trip.market.name} is now "
+                    f"Rs {new:,.0f} (was Rs {old:,.0f})."
+                ),
+                link="/shared-trips",
+            ))
