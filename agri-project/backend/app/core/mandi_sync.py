@@ -66,7 +66,9 @@ def _fetch_all() -> tuple[list[dict], int]:
     params = {"api-key": settings.DATA_GOV_API_KEY, "format": "json", "limit": PAGE_SIZE}
     records: list[dict] = []
     total = None
-    with httpx.Client(timeout=httpx.Timeout(60.0, connect=15.0)) as client:
+    # The gateway answers default client names (python-httpx) with a 502 after ~60 s; name the app.
+    headers = {"User-Agent": geo.USER_AGENT}
+    with httpx.Client(timeout=httpx.Timeout(60.0, connect=15.0), headers=headers) as client:
         offset = 0
         while total is None or offset < total:
             # data.gov.in has short outages (502s); back off and retry each page.
