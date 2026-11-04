@@ -1,0 +1,34 @@
+.st-page { max-width: 960px; }
+
+.st-list { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+
+.st-trip {
+  border: 1px solid #e3ebe5;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #fff;
+  min-width: 0;
+}
+
+.st-trip-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.st-trip-head strong { font-size: 15px; color: #1b2d22; }
+
+.st-facts { display: grid; gap: 5px; font-size: 12px; color: #4f6155; }
+.st-facts span { display: inline-flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+
+.st-space { display: grid; gap: 4px; }
+.st-space small { font-size: 11px; color: #7a887e; }
+.st-space-bar { height: 6px; border-radius: 999px; background: #edf2ee; overflow: hidden; }
+.st-space-bar span { display: block; height: 100%; background: #1b7a44; border-radius: inherit; }
+
+.st-join { display: grid; gap: 10px; border-top: 1px dashed #dfe7e1; padding-top: 10px; }
+.st-quote { font-size: 12.5px; font-weight: 700; color: #1b7a44; }
+.st-error { font-size: 12px; color: #c04335; }
+.st-join-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+.st-members { list-style: none; display: grid; gap: 4px; padding: 0; margin: 0; font-size: 12px; }
+.st-members li { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; color: #4f6155; }
+.st-members strong { color: #1b2d22; }

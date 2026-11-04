@@ -10,6 +10,7 @@ import Crops from './pages/Crops'
 import MarketPrices from './pages/MarketPrices'
 import Markets from './pages/Markets'
 import Trucks from './pages/Trucks'
+import SharedTrips from './pages/SharedTrips'
 import Tracking from './pages/Tracking'
 import Bookings from './pages/Bookings'
 import Reports from './pages/Reports'
@@ -66,6 +67,7 @@ export default function App() {
               <Route path="/crops" element={<Crops />} />
               <Route path="/markets" element={<Markets />} />
               <Route path="/trucks" element={<Trucks />} />
+              <Route path="/shared-trips" element={<SharedTrips />} />
               <Route path="/market-prices" element={<MarketPrices />} />
               <Route path="/tracking" element={<Tracking />} />
               <Route path="/bookings" element={<Bookings />} />
