@@ -12,6 +12,48 @@ SmartAg Ops Advisor is a full-stack agriculture operations platform for comparin
 - Dashboard, reports, and notifications backed by database records
 - Multilingual UI support
 
+## Guest market comparison (demo path, PRD v4.2)
+
+A tomato grower enters a batch and its costs and sees, per 14 kg crate, which comparable market leaves the most money and whether the batch covers picking and selling costs. When the data cannot support a ranking, the page says why. No sign-in is needed: the page gets a short-lived guest token that works only for the comparison endpoints.
+
+Run it locally (about 5 minutes; SQLite, no Postgres needed):
+
+```powershell
+# Backend (terminal 1)
+Set-Location agri-project\backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+$env:DATABASE_URL = "sqlite:///./local-demo.db"
+uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+```powershell
+# Frontend (terminal 2)
+Set-Location agri-project\frontend
+npm install
+$env:VITE_API_URL = "http://127.0.0.1:8000"
+$env:VITE_DEMO_MODE = "true"
+npm run dev
+```
+
+Open http://localhost:5173. On first start the backend loads the eight labelled PRD sample prices (Dindigul district, 24 Oct 2026), so every screen shows "Sample data as of 25 Oct 2026". To load them into another database by hand, run `python -m scripts.seed_decision` from `agri-project/backend`.
+
+Without `VITE_DEMO_MODE=true` the full application runs as before, and the comparison is also available at `/compare`.
+
+| Try this | Expected state |
+|---|---|
+| Oddanchatram (trip 1800) + Palani (trip 3000), 700 kg, capacity 1000, picking 80 | RANKED: Palani by Rs 300; Rs 4 and Rs 10 left per crate |
+| Same, Palani trip 3250 | TOO_CLOSE (difference Rs 50) |
+| Leave one trip cost blank | NEEDS_INPUT |
+| Oddanchatram + Dindigul Uzhavar Sandhai | INSUFFICIENT_MARKETS (different market type) |
+| Add Vedasandur, Batlagundu, Nilakottai or Natham | Listed under "Not ranked" with the reason |
+| Quantity 0 | Field error, no result |
+
+API: `POST /api/auth/guest`, `GET /api/decision/options`, `POST /api/decision/compare`. All calculation rules are in `backend/app/services/decision_engine.py`. Tests: `python -m pytest -v` in `agri-project/backend` (acceptance tests AT-01 to AT-18 plus API tests for every result state).
+
+Settings (backend `.env`): `DECISION_DATA_MODE` (`sample` | `snapshot`), `DECISION_AS_OF` (the date freshness is judged against; empty means today in IST), `DECISION_FRESHNESS_DAYS`, `DECISION_TIE_BAND_FLOOR`, `DECISION_TIE_BAND_PCT`, `DECISION_SEED_ON_START`, `GUEST_TOKEN_MINUTES`.
+
 ## Tech Stack
 
 - **Frontend:** React 18, Vite, React Router, Axios

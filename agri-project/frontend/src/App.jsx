@@ -19,6 +19,10 @@ import Admin from './pages/Admin'
 import BookingRequests from './pages/BookingRequests'
 import MyTrips from './pages/MyTrips'
 import Notifications from './pages/Notifications'
+import Compare from './pages/Compare'
+
+// Demo mode (PRD v4.2): only the guest comparison is reachable; the rest of the app stays in the code.
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
 // Farmer/operator workflow pages (crops, markets, prices, trucks, tracking, bookings) are hidden from admins.
 const NON_ADMIN_ROLES = ['farmer', 'truck_operator', 'market_manager', 'buyer', 'marketer']
@@ -46,7 +50,19 @@ function RootRedirect() {
   return <Navigate to={isAuth ? '/dashboard' : '/login'} replace />
 }
 
+function DemoApp() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Compare />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
 export default function App() {
+  if (DEMO_MODE) return <DemoApp />
   return (
     <LanguageProvider>
       <AuthProvider>
@@ -56,6 +72,7 @@ export default function App() {
             <Route path="/" element={<RootRedirect />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/compare" element={<Compare />} />
             <Route element={<ProtectedLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/reports" element={<Reports />} />
