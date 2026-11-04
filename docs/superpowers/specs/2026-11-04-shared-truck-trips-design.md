@@ -31,7 +31,7 @@ Out of scope: pickups at several farms, operator-posted scheduled runs, automati
 
 `estimated_net_proceeds` is not changed: it comes from the market comparison, which uses a generic per-km rate rather than this truck's fare, so adjusting it would mix two different cost bases. The saving is shown directly instead (alone vs shared).
 
-**Closing.** A trip takes no new members once any of these is true: the opener closes it, the pickup time has passed, no space is left, or any member booking has reached picked_up. Once a member booking is picked up, shares freeze, so delivered bookings keep their final share. If the opener cancels, the trip continues for the other members; when no active member is left, it closes.
+**Closing.** A trip takes no new members once any of these is true: the opener closes it, the pickup time has passed, no space is left, or any member booking has reached picked_up. When the first member booking is picked up, the fare is split one last time over members whose bookings were accepted (a booking still requested can no longer be accepted, because the truck is on its trip); after that, shares freeze, so delivered bookings keep their final share. If the opener cancels, or the opener's account is deleted, the trip continues for the other members; when no active member is left, it closes.
 
 **Privacy.** The list of open trips shows counts and kg only, never names or phone numbers. Trip detail, with each member's first name, kg and share, is visible to members, the truck's operator and admins.
 

@@ -313,3 +313,47 @@ def test_location_reaches_all_members(client):
 
     assert client.patch(f"/api/bookings/{a_id}/location", json={"consent": False}, headers=OP).status_code == 200
     assert client.get(f"/api/bookings/{b_id}/track", headers=B).json()["sharing"] is False
+
+
+def test_pickup_drops_unaccepted_members_from_split(client):
+    # B is still requested when A is picked up; the truck is now on its trip, so B can never be
+    # accepted. The last split happens at pickup, over the members actually on the truck.
+    trip_id, a_id, b_id = two_member_trip(client)
+    set_status(client, a_id, OP, "accepted")
+    set_status(client, a_id, OP, "picked_up")
+    assert cost(client, a_id, A) == 1800.0
+    assert any("now Rs 1,800 (was Rs 600)" in n.message for n in notifications_for(client, "a@example.com"))
+    set_status(client, b_id, OP, "rejected")
+    assert cost(client, a_id, A) == 1800.0
+
+
+# ---------- Account deletion ----------
+
+def delete_account(client, email: str):
+    from app.routers import auth as auth_router  # imports every model delete_user touches
+
+    Base.metadata.create_all(bind=client.Session.kw["bind"])
+    with client.Session() as db:
+        db.add(User(email="admin@example.com", hashed_password="x", full_name="Admin", role="admin"))
+        db.commit()
+    client.app.include_router(auth_router.router)
+    response = client.delete(f"/api/auth/users/{client.ids[email]}", headers=auth("admin@example.com"))
+    assert response.status_code == 204, response.text
+
+
+def test_deleting_a_member_account_keeps_trips_working(client):
+    trip_id, a_id, _ = two_member_trip(client)
+    delete_account(client, "b@example.com")
+    assert client.get("/api/shared-trips", headers=C).status_code == 200
+    assert cost(client, a_id, A) == 1800.0
+    assert client.get(f"/api/shared-trips/{trip_id}", headers=A).json()["member_count"] == 1
+
+
+def test_deleting_the_opener_keeps_the_trip_for_others(client):
+    trip_id, _, b_id = two_member_trip(client)
+    delete_account(client, "a@example.com")
+    [listed] = client.get("/api/shared-trips", headers=C).json()
+    assert listed["id"] == trip_id and listed["member_count"] == 1
+    detail = client.get(f"/api/shared-trips/{trip_id}", headers=B).json()
+    assert detail["opener_id"] is None
+    assert cost(client, b_id, B) == 1800.0

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from app.models.operations import Booking, Notification
-from app.models.pooling import SharedTrip
+from app.models.pooling import SharedTrip, SharedTripMember
 
 # Booking statuses that still take space on the truck (also used by routers/bookings.py).
 ACTIVE_STATUSES = {"requested", "accepted", "assigned", "picked_up", "in_transit"}
@@ -90,6 +90,40 @@ def recalculate(db: Session, trip: SharedTrip, quiet_booking_id: int | None = No
     if not members:
         close_trip(trip)
         return
+    _resplit(db, trip, members, quiet_booking_id)
+
+
+def final_split(db: Session, trip: SharedTrip) -> None:
+    """At the first pickup: one last split over members on the truck, then shares freeze.
+
+    The truck is now on its trip, so a booking still `requested` can never be accepted
+    and drops out of the split.
+    """
+    members = [booking for booking in active_members(trip) if booking.status != "requested"]
+    if members:
+        _resplit(db, trip, members, None)
+
+
+def remove_user(db: Session, user_id: int) -> None:
+    """Before an account is deleted: take its bookings off their trips and re-split the rest."""
+    memberships = (
+        db.query(SharedTripMember)
+        .join(Booking, SharedTripMember.booking_id == Booking.id)
+        .filter(Booking.farmer_id == user_id)
+        .all()
+    )
+    trips = {member.trip for member in memberships}
+    for member in memberships:
+        member.trip.members.remove(member)
+    db.query(SharedTrip).filter(SharedTrip.opener_id == user_id).update(
+        {SharedTrip.opener_id: None}, synchronize_session="fetch"
+    )
+    for trip in trips:
+        recalculate(db, trip)
+    db.flush()
+
+
+def _resplit(db: Session, trip: SharedTrip, members: list[Booking], quiet_booking_id: int | None) -> None:
     shares = split_fare(trip.trip_fare, {booking.id: booking.quantity_kg for booking in members})
     for booking in members:
         old, new = booking.estimated_transport_cost, shares[booking.id]

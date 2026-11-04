@@ -11,7 +11,8 @@ class SharedTrip(Base):
     id = Column(Integer, primary_key=True, index=True)
     truck_id = Column(Integer, ForeignKey("trucks.id", ondelete="RESTRICT"), nullable=False, index=True)
     market_id = Column(Integer, ForeignKey("markets.id", ondelete="RESTRICT"), nullable=False)
-    opener_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    # Nullable: if the opener's account is deleted, the trip carries on for the others.
+    opener_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     pickup_point = Column(String(255), nullable=False)
     pickup_at = Column(DateTime(timezone=True), nullable=False)
     # Fixed when the trip opens, so later price changes do not move anyone's share.

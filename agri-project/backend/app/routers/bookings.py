@@ -331,14 +331,17 @@ def update_booking_status(
         if truck:
             _restore_truck_capacity(truck, booking.quantity_kg)
 
+    trip = pooling.trip_for_booking(booking)
+    was_started = bool(trip) and pooling.is_started(trip)
     booking.status = new_status
     booking.updated_at = datetime.utcnow()
 
-    trip = pooling.trip_for_booking(booking)
     if trip:
         if new_status in {"cancelled", "rejected"}:
             pooling.recalculate(db, trip, quiet_booking_id=booking.id)
         elif new_status in pooling.STARTED_STATUSES:
+            if not was_started:
+                pooling.final_split(db, trip)
             pooling.close_trip(trip)
 
     note = f" {data.note.strip()}" if data.note.strip() else ""

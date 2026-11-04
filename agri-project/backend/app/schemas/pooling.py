@@ -46,7 +46,7 @@ class SharedTripMemberOut(BaseModel):
 
 
 class SharedTripDetail(SharedTripSummary):
-    opener_id: int
+    opener_id: int | None
     members: list[SharedTripMemberOut]
 
 
