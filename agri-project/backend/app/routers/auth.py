@@ -31,6 +31,7 @@ from app.models.operations import (
 from app.models.password_reset import PasswordResetOTP
 from app.models.user_document import UserDocument
 from app.models.user import User, VALID_ROLES
+from app.services import trip_pooling as pooling
 from app.schemas.user import (
     UserSignup,
     UserLogin,
@@ -595,6 +596,7 @@ def delete_user(user_id: int, request: Request, db: Session = Depends(get_db), a
 
     # Remove user-owned records explicitly so deletion also works on databases
     # whose existing tables predate the current ON DELETE rules.
+    pooling.remove_user(db, user.id)
     booking_ids = db.query(Booking.id).filter(Booking.farmer_id == user.id)
     db.query(BookingLocationPoint).filter(BookingLocationPoint.booking_id.in_(booking_ids)).delete(
         synchronize_session=False

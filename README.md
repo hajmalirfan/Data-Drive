@@ -11,6 +11,15 @@ SmartAg Ops Advisor is a full-stack agriculture operations platform for comparin
 - Live location sharing for active deliveries
 - Dashboard, reports, and notifications backed by database records
 - Multilingual UI support
+- Shared truck trips: growers going to the same market share one truck and split its fare
+
+## Shared Truck Trips
+
+Small growers often send a part load to market but pay for the whole truck. When booking a truck on the **Trucks** page, a farmer can tick **Open this trip to share** and name a shared pickup point. Other farmers find the trip under **Shared Trips** in the menu, see what their share would be, and join with their own kg. The truck operator still accepts each booking as usual.
+
+The trip fare is the normal one-trip fare (`base fare + distance × price per km`), fixed when the trip opens. Each farmer pays `fare × their kg ÷ total kg on the trip`, recalculated whenever someone joins, cancels or is rejected, and everyone whose share changes gets a notification. Example: a Rs 1,800 trip with 300 kg and 600 kg on board costs Rs 600 and Rs 1,200. Nobody ever pays more than the solo fare. At the first pickup the fare is split one last time over the farmers actually on the truck (a request the operator never accepted drops out), and shares then freeze. The list of open trips shows counts and kg only; members see each other's first names. When the driver shares GPS on one booking, every farmer on the trip sees the truck.
+
+Design and plan: `docs/superpowers/specs/2026-11-04-shared-truck-trips-design.md`, `docs/superpowers/plans/2026-11-04-shared-truck-trips.md`. Tests: `python -m pytest tests/test_trip_pooling.py tests/test_shared_trips_api.py` in `agri-project/backend`.
 
 ## Tech Stack
 
@@ -121,6 +130,17 @@ different backend. Open http://localhost:5173.
 
 The application starts with an empty operational database. Register a new account from the login page and choose the appropriate role. Admin users can manage roles from the Admin page after signing in.
 
+### Demo data
+
+To try the app locally without entering everything by hand, fill a local SQLite database with demo data:
+
+```bash
+cd agri-project/backend
+DATABASE_URL=sqlite:///./local-demo.db python -m scripts.seed_demo
+```
+
+This adds four Dindigul and Madurai markets with sample prices (labelled "Demo sample (not real prices)"), two truck operators with three trucks, and three farmers with crops. Arun and Bala are already on a shared trip to Palani (₹600 and ₹1,200 of a ₹1,800 fare), and Chitra can sign in and join it. All demo accounts use `@example.com` emails and share one password: pass `--password` (or set `DEMO_PASSWORD`), or the script generates one and prints it. Running it again adds only what is missing and never changes a password. It refuses any database that is not SQLite unless you pass `--allow-non-sqlite`, so a deployed database is never seeded by accident.
+
 ## API Overview
 
 | Method | Endpoint | Description |
@@ -134,6 +154,12 @@ The application starts with an empty operational database. Register a new accoun
 | GET/POST | `/api/prices` | List or publish market prices |
 | GET/POST | `/api/trucks` | List or register trucks |
 | GET/POST | `/api/bookings` | List or create bookings |
+| GET | `/api/shared-trips` | Open shared trips with space (`mine=true`: trips you are on) |
+| POST | `/api/shared-trips` | Book a truck and open the trip to share |
+| GET | `/api/shared-trips/{id}/quote` | Your share if you join with a given kg |
+| POST | `/api/shared-trips/{id}/join` | Join a shared trip (creates a booking) |
+| POST | `/api/shared-trips/{id}/close` | Opener stops new joiners |
+| GET | `/api/shared-trips/{id}` | Trip detail for members, the operator and admins |
 | GET | `/api/dashboard` | Dashboard summary |
 | GET | `/api/reports` | Operational reports |
 | GET | `/api/health` | Health check |

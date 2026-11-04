@@ -17,6 +17,8 @@ from app.schemas.operations import (
     BookingTrackOut,
     TrackPoint,
 )
+from app.services import trip_pooling as pooling
+from app.services.trip_pooling import ACTIVE_STATUSES, trip_fare_for
 
 router = APIRouter(prefix="/api/bookings", tags=["bookings"])
 
@@ -30,7 +32,6 @@ BOOKING_STATUSES = {
     "delivered",
     "cancelled",
 }
-ACTIVE_STATUSES = {"requested", "accepted", "assigned", "picked_up", "in_transit"}
 TERMINAL_STATUSES = {"rejected", "delivered", "cancelled"}
 
 ALLOWED_TRANSITIONS = {
@@ -70,7 +71,15 @@ def booking_out(booking: Booking, user: User) -> BookingOut:
             or (booking.truck and booking.truck.operator_id == user.id)
         )
     )
+    trip = booking.trip_membership.trip if booking.trip_membership else None
     return BookingOut(
+        shared_trip_id=trip.id if trip else None,
+        # Members still on the trip, including delivered ones, so a finished trip keeps its count.
+        shared_trip_member_count=(
+            sum(1 for member in trip.members if member.booking.status not in {"cancelled", "rejected"})
+            if trip else None
+        ),
+        shared_trip_fare=trip.trip_fare if trip else None,
         id=booking.id,
         farmer_id=booking.farmer_id,
         farmer_name=booking.farmer.full_name if booking.farmer else "",
@@ -174,6 +183,14 @@ def create_booking(
     db: Session = Depends(get_db),
     user: User = Depends(require_farmer),
 ):
+    booking = _create_booking(db, user, data)
+    db.commit()
+    db.refresh(booking)
+    return booking_out(booking, user)
+
+
+def _create_booking(db: Session, user: User, data: BookingCreate) -> Booking:
+    """Validate and add a booking plus its two notifications. Flushes; the caller commits."""
     truck = db.query(Truck).filter(Truck.id == data.truck_id).first()
     if not truck:
         raise HTTPException(status_code=404, detail="Truck not found")
@@ -209,7 +226,7 @@ def create_booking(
 
     distance = market.distance_km
     eta = market.eta_minutes
-    transport_cost = truck.base_fare + distance * truck.price_per_km
+    transport_cost = trip_fare_for(truck, market)
 
     estimated_net = None
     if crop:
@@ -254,9 +271,7 @@ def create_booking(
         f"Your request for {truck.vehicle_number} to {market.name} is pending operator confirmation.",
         "/bookings",
     )
-    db.commit()
-    db.refresh(booking)
-    return booking_out(booking, user)
+    return booking
 
 
 @router.patch("/{booking_id}/status", response_model=BookingOut)
@@ -316,8 +331,18 @@ def update_booking_status(
         if truck:
             _restore_truck_capacity(truck, booking.quantity_kg)
 
+    trip = pooling.trip_for_booking(booking)
+    was_started = bool(trip) and pooling.is_started(trip)
     booking.status = new_status
     booking.updated_at = datetime.utcnow()
+
+    if trip:
+        if new_status in {"cancelled", "rejected"}:
+            pooling.recalculate(db, trip, quiet_booking_id=booking.id)
+        elif new_status in pooling.STARTED_STATUSES:
+            if not was_started:
+                pooling.final_split(db, trip)
+            pooling.close_trip(trip)
 
     note = f" {data.note.strip()}" if data.note.strip() else ""
     operator_user_id = truck.operator_id if truck else None
@@ -396,9 +421,24 @@ def update_location(
             detail="Latitude and longitude are required to share location",
         )
 
+    now = datetime.utcnow()
+    _apply_location(db, booking, data, now)
+    # On a shared trip the same truck carries every member's crop, so every member sees it.
+    trip = pooling.trip_for_booking(booking)
+    if trip:
+        for member in trip.members:
+            other = member.booking
+            if other.id != booking.id and other.status in {"picked_up", "in_transit"}:
+                _apply_location(db, other, data, now)
+    db.commit()
+    db.refresh(booking)
+    return booking_out(booking, user)
+
+
+def _apply_location(db: Session, booking: Booking, data: BookingLocationUpdate, now: datetime) -> None:
+    """Record one location fix (or stop sharing) for one booking, keeping its trail bounded."""
     booking.location_consent = data.consent
     if data.consent:
-        now = datetime.utcnow()
         booking.last_lat = data.lat
         booking.last_lng = data.lng
         booking.last_reported_at = now
@@ -423,9 +463,6 @@ def update_location(
         booking.last_lng = None
         booking.last_reported_at = None
         _clear_trail(db, booking)
-    db.commit()
-    db.refresh(booking)
-    return booking_out(booking, user)
 
 
 @router.get("/{booking_id}/track", response_model=BookingTrackOut)

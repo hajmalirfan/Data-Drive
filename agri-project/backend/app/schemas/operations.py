@@ -250,6 +250,10 @@ class BookingOut(BaseModel):
     last_lng: float | None = None
     last_reported_at: datetime | None = None
     created_at: datetime | None = None
+    # Set when the booking is part of a shared truck trip.
+    shared_trip_id: int | None = None
+    shared_trip_member_count: int | None = None
+    shared_trip_fare: float | None = None
 
 
 # ---------- Notifications ----------
