@@ -5,8 +5,8 @@ from sqlalchemy import inspect
 from app.core.config import settings
 from app.core.database import Base, engine
 from app.core import mandi_sync, metrics, security_policy
-from app.models import chat, geo, login_otp, mandi, metrics as metrics_model, operations, password_reset, user, user_document  # noqa: F401 - register models
-from app.routers import admin, auth, bookings, chat as chat_router, crops, dashboard, documents, finder, mandi as mandi_router, markets, trucks
+from app.models import chat, decision as decision_model, geo, login_otp, mandi, metrics as metrics_model, operations, password_reset, user, user_document  # noqa: F401 - register models
+from app.routers import admin, auth, bookings, chat as chat_router, crops, dashboard, decision, documents, finder, mandi as mandi_router, markets, trucks
 
 
 def migrate_schema():
@@ -88,6 +88,18 @@ try:
 except Exception as e:
     print(f"Database initialization notice: {e}")
 
+_seed_on_start = settings.DECISION_SEED_ON_START
+if _seed_on_start is None:
+    _seed_on_start = not security_policy.is_production()
+if _seed_on_start and settings.DECISION_DATA_MODE.strip().lower() == "sample":
+    try:
+        from app.core.database import SessionLocal
+        from app.services.decision_seed import seed_sample
+        with SessionLocal() as _db:
+            seed_sample(_db)
+    except Exception as e:
+        print(f"Decision sample seed notice: {e}")
+
 security_policy.check_configuration()
 
 # API docs are for development only.
@@ -133,6 +145,7 @@ app.include_router(finder.router)
 app.include_router(trucks.router)
 app.include_router(bookings.router)
 app.include_router(dashboard.router)
+app.include_router(decision.router)
 
 
 @app.get("/")

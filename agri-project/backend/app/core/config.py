@@ -44,6 +44,19 @@ class Settings(BaseSettings):
     PACKAGING_COST_PER_KG: float = 0.25
     STALE_PRICE_HOURS: int = 48
 
+    # Market comparison (PRD v4.2). "sample" uses the labelled PRD seed; "snapshot"
+    # uses loaded reported rows. Sample and snapshot rows are never mixed in one comparison.
+    DECISION_DATA_MODE: str = "sample"
+    # Date prices are judged fresh against (YYYY-MM-DD). Empty = the PRD demo date
+    # (2026-10-25) in sample mode, and today in IST in snapshot mode.
+    DECISION_AS_OF: str = ""
+    DECISION_FRESHNESS_DAYS: int = 2
+    DECISION_TIE_BAND_FLOOR: int = 100
+    DECISION_TIE_BAND_PCT: float = 2.0
+    # Insert the sample seed at startup when no sample rows exist. Unset = on in
+    # development, off in production (seed production with scripts.seed_decision).
+    DECISION_SEED_ON_START: bool | None = None
+
     # Government mandi prices (Agmarknet). "dataset" imports CSV files from MANDI_DATASET_DIR
     # (default: <repo>/dataset); "api" downloads from data.gov.in with DATA_GOV_API_KEY.
     MANDI_SOURCE: str = "dataset"

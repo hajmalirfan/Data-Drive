@@ -19,6 +19,7 @@ import Admin from './pages/Admin'
 import BookingRequests from './pages/BookingRequests'
 import MyTrips from './pages/MyTrips'
 import Notifications from './pages/Notifications'
+import Compare from './pages/Compare'
 
 // Farmer/operator workflow pages (crops, markets, prices, trucks, tracking, bookings) are hidden from admins.
 const NON_ADMIN_ROLES = ['farmer', 'truck_operator', 'market_manager', 'buyer', 'marketer']
@@ -65,6 +66,7 @@ export default function App() {
             <Route element={<ProtectedLayout allowedRoles={NON_ADMIN_ROLES} />}>
               <Route path="/crops" element={<Crops />} />
               <Route path="/markets" element={<Markets />} />
+              <Route path="/compare" element={<Compare />} />
               <Route path="/trucks" element={<Trucks />} />
               <Route path="/market-prices" element={<MarketPrices />} />
               <Route path="/tracking" element={<Tracking />} />
