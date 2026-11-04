@@ -238,3 +238,78 @@ def test_join_with_foreign_crop(client):
         db.commit()
         crop_id = crop.id
     assert join(client, trip["id"], B, 100, crop_id=crop_id).status_code == 403
+
+
+# ---------- Booking status hooks and location fan-out ----------
+
+def set_status(client, booking_id: int, headers, status: str):
+    response = client.patch(f"/api/bookings/{booking_id}/status", json={"status": status}, headers=headers)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def cost(client, booking_id: int, headers) -> float:
+    return client.get(f"/api/bookings/{booking_id}", headers=headers).json()["estimated_transport_cost"]
+
+
+def trip_status(client, trip_id: int) -> str:
+    return client.get(f"/api/shared-trips/{trip_id}", headers=OP).json()["status"]
+
+
+def two_member_trip(client) -> tuple[int, int, int]:
+    body = opened(client)
+    joined = join(client, body["trip"]["id"], B, 600)
+    assert joined.status_code == 201, joined.text
+    return body["trip"]["id"], body["booking"]["id"], joined.json()["id"]
+
+
+def test_cancel_recalculates(client):
+    trip_id, a_id, b_id = two_member_trip(client)
+    set_status(client, b_id, B, "cancelled")
+    assert cost(client, a_id, A) == 1800.0
+    assert any("now Rs 1,800 (was Rs 600)" in n.message for n in notifications_for(client, "a@example.com"))
+    assert trip_status(client, trip_id) == "open"
+
+
+def test_opener_rejected_trip_continues(client):
+    trip_id, a_id, b_id = two_member_trip(client)
+    set_status(client, a_id, OP, "rejected")
+    assert trip_status(client, trip_id) == "open"
+    assert cost(client, b_id, B) == 1800.0
+
+
+def test_last_member_leaving_closes_trip(client):
+    body = opened(client)
+    set_status(client, body["booking"]["id"], A, "cancelled")
+    assert trip_status(client, body["trip"]["id"]) == "closed"
+
+
+def test_pickup_closes_and_freezes(client):
+    trip_id, a_id, b_id = two_member_trip(client)
+    set_status(client, a_id, OP, "accepted")
+    set_status(client, b_id, OP, "accepted")
+    set_status(client, a_id, OP, "picked_up")
+    assert trip_status(client, trip_id) == "closed"
+    set_status(client, b_id, B, "cancelled")
+    assert cost(client, a_id, A) == 600.0
+
+
+def test_rejoin_after_cancel(client):
+    trip_id, _, b_id = two_member_trip(client)
+    set_status(client, b_id, B, "cancelled")
+    assert join(client, trip_id, B, 600).status_code == 201
+
+
+def test_location_reaches_all_members(client):
+    _, a_id, b_id = two_member_trip(client)
+    for status in ("accepted", "picked_up"):
+        for booking_id in (a_id, b_id):
+            set_status(client, booking_id, OP, status)
+    fix = {"consent": True, "lat": 10.45, "lng": 77.52}
+    assert client.patch(f"/api/bookings/{a_id}/location", json=fix, headers=OP).status_code == 200
+    track = client.get(f"/api/bookings/{b_id}/track", headers=B).json()
+    assert track["sharing"] is True
+    assert [(p["lat"], p["lng"]) for p in track["points"]] == [(10.45, 77.52)]
+
+    assert client.patch(f"/api/bookings/{a_id}/location", json={"consent": False}, headers=OP).status_code == 200
+    assert client.get(f"/api/bookings/{b_id}/track", headers=B).json()["sharing"] is False

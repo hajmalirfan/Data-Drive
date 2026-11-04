@@ -17,6 +17,7 @@ from app.schemas.operations import (
     BookingTrackOut,
     TrackPoint,
 )
+from app.services import trip_pooling as pooling
 from app.services.trip_pooling import ACTIVE_STATUSES, trip_fare_for
 
 router = APIRouter(prefix="/api/bookings", tags=["bookings"])
@@ -333,6 +334,13 @@ def update_booking_status(
     booking.status = new_status
     booking.updated_at = datetime.utcnow()
 
+    trip = pooling.trip_for_booking(booking)
+    if trip:
+        if new_status in {"cancelled", "rejected"}:
+            pooling.recalculate(db, trip, quiet_booking_id=booking.id)
+        elif new_status in pooling.STARTED_STATUSES:
+            pooling.close_trip(trip)
+
     note = f" {data.note.strip()}" if data.note.strip() else ""
     operator_user_id = truck.operator_id if truck else None
     if is_farmer:
@@ -410,9 +418,24 @@ def update_location(
             detail="Latitude and longitude are required to share location",
         )
 
+    now = datetime.utcnow()
+    _apply_location(db, booking, data, now)
+    # On a shared trip the same truck carries every member's crop, so every member sees it.
+    trip = pooling.trip_for_booking(booking)
+    if trip:
+        for member in trip.members:
+            other = member.booking
+            if other.id != booking.id and other.status in {"picked_up", "in_transit"}:
+                _apply_location(db, other, data, now)
+    db.commit()
+    db.refresh(booking)
+    return booking_out(booking, user)
+
+
+def _apply_location(db: Session, booking: Booking, data: BookingLocationUpdate, now: datetime) -> None:
+    """Record one location fix (or stop sharing) for one booking, keeping its trail bounded."""
     booking.location_consent = data.consent
     if data.consent:
-        now = datetime.utcnow()
         booking.last_lat = data.lat
         booking.last_lng = data.lng
         booking.last_reported_at = now
@@ -437,9 +460,6 @@ def update_location(
         booking.last_lng = None
         booking.last_reported_at = None
         _clear_trail(db, booking)
-    db.commit()
-    db.refresh(booking)
-    return booking_out(booking, user)
 
 
 @router.get("/{booking_id}/track", response_model=BookingTrackOut)
