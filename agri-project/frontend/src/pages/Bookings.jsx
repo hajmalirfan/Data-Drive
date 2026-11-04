@@ -274,6 +274,15 @@ export default function Bookings() {
                       <span><Icon name="truck" size={12} /> {booking.vehicle_number || '—'}</span>
                       <span><Icon name="clock" size={12} /> {when(booking.pickup_at)}</span>
                     </span>
+                    {booking.shared_trip_id && (
+                      <span className="shared-trip-chip">
+                        {t('bookings.sharedChip', [
+                          booking.shared_trip_member_count,
+                          inr(booking.estimated_transport_cost),
+                          inr(booking.shared_trip_fare),
+                        ])}
+                      </span>
+                    )}
                     <span className={`booking-card-strip ${active ? 'active' : ''}`} />
                   </button>
                 )

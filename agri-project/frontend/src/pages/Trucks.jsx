@@ -12,6 +12,7 @@ import {
   getTrucks,
   updateTruck,
 } from '../services/operationsService'
+import { openSharedTrip } from '../services/sharedTripService'
 import './Trucks.css'
 import { useLanguage } from '../context/LanguageContext'
 import { formatIndiaDate, getIndiaDateTimeLocal } from '../utils/dateTime'
@@ -25,6 +26,9 @@ const dateText = (value) =>
 const nextPickup = () => {
   return getIndiaDateTimeLocal(1, 8)
 }
+
+// The picker gives India wall-clock time with no zone; say so, so the server stores the real instant.
+const withIndiaOffset = (value) => `${value.length === 16 ? `${value}:00` : value}+05:30`
 
 export default function Trucks() {
   const { t, statusLabel, roleLabel } = useLanguage()
@@ -50,6 +54,8 @@ export default function Trucks() {
     pickup_at: nextPickup(),
     accompanied: false,
     notes: '',
+    share: false,
+    pickup_point: '',
   })
   const [bookingError, setBookingError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -126,6 +132,8 @@ export default function Trucks() {
       pickup_at: nextPickup(),
       accompanied: false,
       notes: '',
+      share: false,
+      pickup_point: '',
     })
     setBookingError('')
   }
@@ -154,9 +162,11 @@ export default function Trucks() {
     }
     if (!booking.pickup_location.trim()) { setBookingError(t('trucks.errPickup')); return }
     if (!booking.pickup_at) { setBookingError(t('trucks.errPickupTime')); return }
+    const pickupPoint = (booking.pickup_point || booking.pickup_location).trim()
+    if (booking.share && pickupPoint.length < 2) { setBookingError(t('trucks.errPickupPoint')); return }
     setSaving(true)
     try {
-      await createBooking({
+      const payload = {
         truck_id: selectedTruck.id,
         crop_id: booking.crop_id ? Number(booking.crop_id) : null,
         market_id: Number(booking.market_id),
@@ -166,12 +176,17 @@ export default function Trucks() {
         pickup_at: booking.pickup_at,
         accompanied: booking.accompanied,
         notes: booking.notes.trim(),
-      })
+      }
+      if (booking.share) {
+        await openSharedTrip({ ...payload, pickup_at: withIndiaOffset(booking.pickup_at), pickup_point: pickupPoint })
+      } else {
+        await createBooking(payload)
+      }
       setSelectedTruck(null)
       setNotice(t('trucks.booked'))
       setTab('market')
       loadMarket()
-      setTimeout(() => navigate('/bookings'), 700)
+      setTimeout(() => navigate(booking.share ? '/shared-trips' : '/bookings'), 700)
     } catch (err) {
       setBookingError(err.response?.data?.detail || t('trucks.bookingError'))
     } finally {
@@ -517,6 +532,25 @@ export default function Trucks() {
                 <small>{selectedTruck.has_passenger_seat ? t('trucks.seatAvailable') : t('trucks.noSeat')}</small>
               </span>
             </label>
+            <label className="truck-check span-2">
+              <input
+                type="checkbox"
+                checked={booking.share}
+                onChange={(event) => setBooking((prev) => ({ ...prev, share: event.target.checked }))}
+              />
+              <span>{t('trucks.shareTrip')}</span>
+            </label>
+            {booking.share && (
+              <label className="ui-field span-2">
+                <span className="ui-label">{t('trucks.pickupPoint')}</span>
+                <input
+                  className="ui-input"
+                  value={booking.pickup_point || booking.pickup_location}
+                  onChange={(event) => setBooking((prev) => ({ ...prev, pickup_point: event.target.value }))}
+                  required
+                />
+              </label>
+            )}
 
             <div className="truck-detail-block span-2">
               <strong className="truck-detail-title"><Icon name="profile" size={14} />{t('trucks.operatorDetails')}</strong>

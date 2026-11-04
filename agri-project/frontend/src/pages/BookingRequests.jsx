@@ -155,6 +155,11 @@ export default function BookingRequests() {
                       <td>
                         <strong>{booking.farmer_name || t('common.you')}</strong>
                         <small className="bookings-sub">#{booking.id} · {when(booking.created_at, isTruckOperator)}</small>
+                        {booking.shared_trip_id && (
+                          <span className="shared-trip-chip">
+                            {t('bookings.sharedChipOperator', [booking.shared_trip_member_count])}
+                          </span>
+                        )}
                       </td>
                       <td>
                         <strong>{booking.crop_name || t('common.generalGoods')}</strong>

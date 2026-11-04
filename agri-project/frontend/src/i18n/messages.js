@@ -1148,6 +1148,11 @@ export const MESSAGES = {
   'sharedTrips.closed': 'Closed',
   'sharedTrips.yourShare': 'Your share <0>',
   'sharedTrips.loadError': 'Could not load shared trips. Try again.',
+  'trucks.shareTrip': 'Open this trip to share with other farmers',
+  'trucks.pickupPoint': 'Shared pickup point',
+  'trucks.errPickupPoint': 'Enter where other farmers should bring their crates.',
+  'bookings.sharedChip': 'Shared trip · <0> farmers · your share <1> of <2>',
+  'bookings.sharedChipOperator': 'Shared trip · <0> farmers',
 }
 
 export const MESSAGE_KEYS = Object.keys(MESSAGES)
