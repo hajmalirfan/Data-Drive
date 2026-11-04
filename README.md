@@ -130,6 +130,17 @@ different backend. Open http://localhost:5173.
 
 The application starts with an empty operational database. Register a new account from the login page and choose the appropriate role. Admin users can manage roles from the Admin page after signing in.
 
+### Demo data
+
+To try the app locally without entering everything by hand, fill a local SQLite database with demo data:
+
+```bash
+cd agri-project/backend
+DATABASE_URL=sqlite:///./local-demo.db python -m scripts.seed_demo
+```
+
+This adds four Dindigul and Madurai markets with sample prices (labelled "Demo sample (not real prices)"), two truck operators with three trucks, and three farmers with crops. Arun and Bala are already on a shared trip to Palani (₹600 and ₹1,200 of a ₹1,800 fare), and Chitra can sign in and join it. All demo accounts use `@example.com` emails and share one password: pass `--password` (or set `DEMO_PASSWORD`), or the script generates one and prints it. Running it again adds only what is missing and never changes a password. It refuses any database that is not SQLite unless you pass `--allow-non-sqlite`, so a deployed database is never seeded by accident.
+
 ## API Overview
 
 | Method | Endpoint | Description |
