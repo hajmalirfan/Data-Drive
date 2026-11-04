@@ -83,6 +83,7 @@ export const MESSAGES = {
   'nav.crops': 'My Crops',
   'nav.marketPrices': 'Market Prices',
   'nav.markets': 'Find Markets',
+  'nav.compare': 'Compare Markets',
   'nav.trucks': 'Truck Booking',
   'nav.tracking': 'Live Tracking',
   'nav.bookings': 'My Bookings',
@@ -105,6 +106,8 @@ export const MESSAGES = {
   'subtitle.marketPrices': 'Time-stamped prices entered by market managers',
   'title.markets': 'Find Markets',
   'subtitle.markets': 'Compare distance, travel time and prices',
+  'title.compare': 'Compare Markets',
+  'subtitle.compare': 'Which market leaves you the most for this harvest',
   'title.trucks': 'Truck Booking',
   'subtitle.trucks': 'Shared transport for your harvest',
   'title.tracking': 'Live Tracking',
@@ -1128,8 +1131,9 @@ export const MESSAGES = {
 
   // Guest market comparison (pages/Compare.jsx). Not yet in translations.js: Tamil and
   // other languages are added only after native review (PRD v4.2 FR-17).
-  'compare.pageTitle': 'SmartAg - Market comparison',
   'compare.heading': 'Which market leaves you the most per crate?',
+  'compare.subtitle': 'Choose 2 or 3 markets and enter your costs. Each market uses its latest dated price.',
+  'compare.loadingMarkets': 'Loading markets...',
   'compare.sampleNotice': 'Sample data — not reported prices.',
   'compare.place': 'Place',
   'compare.crop': 'Crop',
@@ -1152,7 +1156,7 @@ export const MESSAGES = {
   'compare.checkFields': 'Check the highlighted fields.',
   'compare.checkNumbers': 'Check that every number is entered correctly.',
   'compare.sourceError': 'Could not retrieve data. Try again later.',
-  'compare.tooMany': 'Too many requests from this network. Please wait a few minutes and try again.',
+  'compare.tooMany': 'Too many requests. Please wait a few minutes and try again.',
   'compare.offline': 'Could not reach the server. Check your connection and try again.',
   'compare.stateRanked': 'Ranked',
   'compare.stateTooClose': 'Too close to call',

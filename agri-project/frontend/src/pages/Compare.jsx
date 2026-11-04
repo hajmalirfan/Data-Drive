@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import Icon from '../components/Icons'
 import { useLanguage } from '../context/LanguageContext'
 import { compareMarkets, getDecisionOptions } from '../services/decisionService'
 import { rupees } from '../utils/money'
 import './Compare.css'
 
-// Guest selling-decision page (PRD v4.2 section 5). Every rule is decided by the API;
+// Market comparison page (PRD v4.2 section 5), for signed-in users. Every rule is decided by the API;
 // this page only collects inputs and shows the result in the PRD's top-to-bottom order.
 // Page text comes from the compare.* catalogue keys; the API's result messages, reasons
 // and assumptions stay in English as the PRD words them.
@@ -40,6 +42,7 @@ function cropLabel(crop) {
 function requestFailure(error, t) {
   const status = error.response?.status
   if (status === 429) return error.response.data?.detail || t('compare.tooMany')
+  if (status === 403) return error.response.data?.detail || t('compare.sourceError')
   if (!error.response) return t('compare.offline')
   return t('compare.sourceError')
 }
@@ -234,10 +237,6 @@ export default function Compare() {
   const [submitting, setSubmitting] = useState(false)
   const resultRef = useRef(null)
 
-  useEffect(() => {
-    document.title = t('compare.pageTitle')
-  }, [t])
-
   // A result only describes the inputs it was computed from: drop it as soon as any input changes.
   useEffect(() => {
     setResult(null)
@@ -326,20 +325,30 @@ export default function Compare() {
   const excluded = result ? result.cards.filter((c) => !c.eligible) : []
 
   return (
-    <div className="cmp-page">
-      <header className="cmp-header">
-        <p className="cmp-brand">SmartAg Ops Advisor</p>
-        <h1>{t('compare.heading')}</h1>
-        <DataBadge data={result?.data?.label ? result.data : options?.data} t={t} />
-      </header>
+    <div className="ui-page cmp-page">
+      <div className="ui-toolbar">
+        <div>
+          <h2>{t('compare.heading')}</h2>
+          <p>{t('compare.subtitle')}</p>
+        </div>
+        <div className="ui-toolbar-actions">
+          <Link to="/markets" className="ui-btn ui-btn-outline"><Icon name="markets" size={14} />{t('nav.markets')}</Link>
+        </div>
+      </div>
+
+      <DataBadge data={result?.data?.label ? result.data : options?.data} t={t} />
 
       {loadError && (
         <div className="ui-alert ui-alert-error cmp-load-error" role="alert">
           {loadError}{' '}
-          <button type="button" className="ui-btn ui-btn-sm ui-btn-outline" onClick={loadOptions}>{t('compare.tryAgain')}</button>
+          <button type="button" className="ui-btn ui-btn-sm ui-btn-outline" onClick={loadOptions}>
+            <Icon name="refresh" size={13} /> {t('compare.tryAgain')}
+          </button>
         </div>
       )}
-      {!options && !loadError && <div className="ui-loading"><span className="ui-spinner" /></div>}
+      {!options && !loadError && (
+        <div className="ui-card ui-loading"><span className="ui-spinner" />{t('compare.loadingMarkets')}</div>
+      )}
 
       {options && (
         <form className="ui-card cmp-section" onSubmit={submit} noValidate>

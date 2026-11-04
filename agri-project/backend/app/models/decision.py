@@ -1,4 +1,4 @@
-"""Tables for the guest selling-decision flow (PRD v4.2 section 6).
+"""Tables for the selling-decision flow (PRD v4.2 section 6).
 
 Kept apart from ``markets``/``market_prices`` (bookings depend on those) and from
 ``mandi_prices`` (the government board). Every place-specific fact lives in rows:

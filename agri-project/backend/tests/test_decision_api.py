@@ -1,4 +1,4 @@
-"""API tests for the guest decision flow (PRD v4.2, QA prompt P5 and P6).
+"""API tests for the signed-in decision flow (PRD v4.2, QA prompt P5 and P6).
 
 The router runs in a bare FastAPI app on an in-memory SQLite database seeded with
 the PRD sample, so no shared database, scheduler or startup hook is touched.
@@ -18,6 +18,7 @@ from app.core.database import Base, get_db
 from app.core.security import create_access_token
 from app.core.security_policy import limiter
 from app.models.decision import DecisionMarket, MarketCrop, Region
+from app.models.user import User
 from app.routers import decision
 from app.services.decision_seed import seed_sample
 
@@ -28,7 +29,7 @@ BATCH = {"crop": "tomato", "quantity": 700, "unit": "kg", "vehicle_capacity_kg":
 def client():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     tables = [t for name, t in Base.metadata.tables.items()
-              if name in ("regions", "decision_markets", "decision_market_crops", "unit_conversions",
+              if name in ("users", "regions", "decision_markets", "decision_market_crops", "unit_conversions",
                           "ingestion_runs", "price_records")]
     Base.metadata.create_all(bind=engine, tables=tables)
     Session = sessionmaker(bind=engine)
@@ -43,6 +44,8 @@ def client():
             db.add(MarketCrop(market_id=market.id, crop="tomato"))
         # A disabled market is never offered.
         db.add(DecisionMarket(slug="disabled", name="Disabled", region_id=region.id, market_type="wholesale", enabled=False))
+        for email, role in (("farmer@example.com", "farmer"), ("admin@example.com", "admin")):
+            db.add(User(email=email, hashed_password="x", role=role))
         db.commit()
 
     def override_db():
@@ -58,7 +61,7 @@ def client():
     limiter._hits.clear()
     test_client = TestClient(app)
     test_client.app_ref = app
-    token = test_client.post("/api/auth/guest").json()["access_token"]
+    token = create_access_token({"sub": "farmer@example.com", "role": "farmer"})
     test_client.headers["Authorization"] = f"Bearer {token}"
     return test_client
 
@@ -71,12 +74,26 @@ def card(result, market_id):
     return next(c for c in result["cards"] if c["market_id"] == market_id)
 
 
-def test_guest_token_is_required(client):
+def bearer(claims):
+    return {"Authorization": f"Bearer {create_access_token(claims)}"}
+
+
+def test_sign_in_is_required(client):
     anonymous = TestClient(client.app_ref)
     assert anonymous.get("/api/decision/options").status_code == 401
-    # A normal sign-in token (no guest purpose) is not a guest token.
-    user_token = create_access_token({"sub": "farmer@example.com", "role": "farmer"})
-    assert anonymous.get("/api/decision/options", headers={"Authorization": f"Bearer {user_token}"}).status_code == 401
+    # Purpose tokens (password reset, admin OTP) are not sessions.
+    reset = bearer({"sub": "farmer@example.com", "purpose": "password_reset"})
+    assert anonymous.get("/api/decision/options", headers=reset).status_code == 401
+    # Unknown accounts are rejected.
+    assert anonymous.get("/api/decision/options", headers=bearer({"sub": "nobody@example.com"})).status_code == 401
+    # The guest endpoint is gone.
+    assert anonymous.post("/api/auth/guest").status_code in (404, 405)
+
+
+def test_admins_are_not_offered_the_comparison(client):
+    admin = bearer({"sub": "admin@example.com", "role": "admin"})
+    assert client.get("/api/decision/options", headers=admin).status_code == 403
+    assert client.post("/api/decision/compare", json={**BATCH, "markets": []}, headers=admin).status_code == 403
 
 
 def test_options_list_seeded_markets_with_sample_badge(client):

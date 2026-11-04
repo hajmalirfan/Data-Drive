@@ -1,4 +1,4 @@
-"""Sample seed for the guest comparison (PRD v4.2 section 6).
+"""Sample seed for the market comparison (PRD v4.2 section 6).
 
 Eight labelled sample records near Oddanchatram, one per result the demo must
 show. Market names and types are still to be confirmed by the BA. Where the PRD

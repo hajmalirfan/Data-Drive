@@ -1,4 +1,4 @@
-"""Load the PRD sample prices for the guest comparison.
+"""Load the PRD sample prices for the market comparison.
 
 Run from agri-project/backend:  python -m scripts.seed_decision
 Safe to run more than once: existing sample rows are left as they are.

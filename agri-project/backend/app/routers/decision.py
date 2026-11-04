@@ -1,6 +1,5 @@
-"""Guest selling-decision API (PRD v4.2 sections 4-5).
+"""Selling-decision API (PRD v4.2 sections 4-5), for signed-in non-admin users.
 
-POST /api/auth/guest       short-lived demo token, valid only for the endpoints below
 GET  /api/decision/options regions, crops and markets the comparison can offer, plus the data badge
 POST /api/decision/compare runs the decision engine on the latest dated price per chosen market
 
@@ -11,23 +10,24 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import create_access_token, decode_token
 from app.core.security_policy import rate_limit
 from app.models.decision import DecisionMarket, MarketCrop, PriceRecord, Region, UnitConversion
+from app.routers.auth import require_roles
 from app.services import decision_engine as engine
 
 router = APIRouter(tags=["decision"])
-guest_scheme = HTTPBearer(auto_error=False)
+
+# Same roles as the other farmer/operator workflow pages; admins do not use them.
+NON_ADMIN_ROLES = ("farmer", "truck_operator", "market_manager", "buyer", "marketer")
+require_non_admin = require_roles(*NON_ADMIN_ROLES)
 
 IST = timezone(timedelta(hours=5, minutes=30))  # India has no daylight saving
-GUEST_PURPOSE = "guest"
 MAX_MARKETS = 3
 SAMPLE_AS_OF = date(2026, 10, 25)  # the PRD demo date the sample seed is dated against
 
@@ -46,7 +46,7 @@ REASON_LABELS = {
 }
 
 
-# ---- configuration and access ----------------------------------------------
+# ---- configuration ----------------------------------------------------------
 def decision_config() -> dict:
     """Engine config from settings; a dependency so tests can move the as-of date."""
     data_mode = settings.DECISION_DATA_MODE.strip().lower()
@@ -61,20 +61,6 @@ def decision_config() -> dict:
         "tie_band_pct": Decimal(str(settings.DECISION_TIE_BAND_PCT)),
         "data_mode": data_mode,
     }
-
-
-def require_guest(credentials: HTTPAuthorizationCredentials | None = Depends(guest_scheme)) -> None:
-    payload = decode_token(credentials.credentials) if credentials else None
-    if not payload or payload.get("purpose") != GUEST_PURPOSE:
-        raise HTTPException(status_code=401, detail="Guest session expired. Reload the page.")
-
-
-@router.post("/api/auth/guest", dependencies=[Depends(rate_limit("guest_token", 300, 3600))])
-def guest_token():
-    """Demo token. Its 'purpose' claim makes every signed-in endpoint reject it."""
-    minutes = settings.GUEST_TOKEN_MINUTES
-    token = create_access_token({"sub": GUEST_PURPOSE, "purpose": GUEST_PURPOSE}, timedelta(minutes=minutes))
-    return {"access_token": token, "token_type": "bearer", "expires_in": minutes * 60}
 
 
 # ---- source adapter ---------------------------------------------------------
@@ -147,7 +133,7 @@ def latest_records(db: Session, markets: list[DecisionMarket], crop: str, config
 
 
 # ---- endpoints --------------------------------------------------------------
-@router.get("/api/decision/options", dependencies=[Depends(require_guest)])
+@router.get("/api/decision/options", dependencies=[Depends(require_non_admin)])
 def options(db: Session = Depends(get_db), config: dict = Depends(decision_config)):
     try:
         pairs = enabled_markets(db)
@@ -236,7 +222,7 @@ def assumptions(config: dict) -> list[str]:
 
 @router.post(
     "/api/decision/compare",
-    dependencies=[Depends(require_guest), Depends(rate_limit("decision_compare", 60, 60))],
+    dependencies=[Depends(require_non_admin), Depends(rate_limit("decision_compare", 60, 60))],
 )
 def compare(body: CompareRequest, db: Session = Depends(get_db), config: dict = Depends(decision_config)):
     crop = body.crop.strip().lower()
