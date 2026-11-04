@@ -5,7 +5,7 @@ from sqlalchemy import inspect
 from app.core.config import settings
 from app.core.database import Base, engine
 from app.core import mandi_sync, metrics, security_policy
-from app.models import chat, geo, login_otp, mandi, metrics as metrics_model, operations, password_reset, user, user_document  # noqa: F401 - register models
+from app.models import chat, geo, login_otp, mandi, metrics as metrics_model, operations, password_reset, pooling, user, user_document  # noqa: F401 - register models
 from app.routers import admin, auth, bookings, chat as chat_router, crops, dashboard, documents, finder, mandi as mandi_router, markets, trucks
 
 
