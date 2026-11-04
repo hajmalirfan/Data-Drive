@@ -4,6 +4,7 @@ The router runs in a bare FastAPI app on an in-memory SQLite database seeded wit
 the PRD sample, so no shared database, scheduler or startup hook is touched.
 """
 from datetime import date
+from decimal import Decimal as D
 
 import pytest
 from fastapi import FastAPI
@@ -194,3 +195,16 @@ def test_negative_cost_and_market_count_are_field_errors(client):
 def test_no_price_is_called_live(client):
     response = compare(client, [{"market_id": "oddanchatram", "trip_cost": 1800}, {"market_id": "palani", "trip_cost": 3000}])
     assert "live" not in response.text.lower()
+
+
+def test_as_of_defaults_to_demo_date_for_sample_and_today_for_snapshot(monkeypatch):
+    monkeypatch.setattr(decision.settings, "DECISION_AS_OF", "")
+    monkeypatch.setattr(decision.settings, "DECISION_DATA_MODE", "sample")
+    assert decision.decision_config()["as_of"] == date(2026, 10, 25)
+    monkeypatch.setattr(decision.settings, "DECISION_DATA_MODE", "snapshot")
+    assert decision.decision_config()["as_of"] == decision.datetime.now(decision.IST).date()
+
+
+def test_tie_band_percent_never_uses_scientific_notation():
+    config = {**decision.decision_config(), "tie_band_pct": D("10.0")}
+    assert any("or 10% apart" in line for line in decision.assumptions(config))

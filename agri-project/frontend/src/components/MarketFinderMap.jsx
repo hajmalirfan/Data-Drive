@@ -3,6 +3,7 @@ import L from 'leaflet'
 import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useLanguage } from '../context/LanguageContext'
+import { rupees as formatRupees } from '../utils/money'
 
 const originIcon = L.divIcon({
   className: 'mf-origin-marker',
@@ -22,7 +23,7 @@ const LAYERS = {
   },
 }
 
-const rupees = (value) => `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+const rupees = (value) => formatRupees(value, { symbol: '₹' })
 const duration = (minutes, language) => {
   const m = Math.round(minutes)
   const format = (unit, value) =>

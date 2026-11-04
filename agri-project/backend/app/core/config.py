@@ -47,13 +47,15 @@ class Settings(BaseSettings):
     # Guest selling decision (PRD v4.2). "sample" uses the labelled PRD seed; "snapshot"
     # uses loaded reported rows. Sample and snapshot rows are never mixed in one comparison.
     DECISION_DATA_MODE: str = "sample"
-    # Date prices are judged fresh against (YYYY-MM-DD); empty = today in IST.
-    DECISION_AS_OF: str = "2026-10-25"
+    # Date prices are judged fresh against (YYYY-MM-DD). Empty = the PRD demo date
+    # (2026-10-25) in sample mode, and today in IST in snapshot mode.
+    DECISION_AS_OF: str = ""
     DECISION_FRESHNESS_DAYS: int = 2
     DECISION_TIE_BAND_FLOOR: int = 100
     DECISION_TIE_BAND_PCT: float = 2.0
-    # Insert the sample seed at startup when no sample rows exist.
-    DECISION_SEED_ON_START: bool = True
+    # Insert the sample seed at startup when no sample rows exist. Unset = on in
+    # development, off in production (seed production with scripts.seed_decision).
+    DECISION_SEED_ON_START: bool | None = None
     GUEST_TOKEN_MINUTES: int = 120
 
     # Government mandi prices (Agmarknet). "dataset" imports CSV files from MANDI_DATASET_DIR

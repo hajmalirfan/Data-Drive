@@ -52,12 +52,14 @@ function RootRedirect() {
 
 function DemoApp() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Compare />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+    <LanguageProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Compare />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </LanguageProvider>
   )
 }
 

@@ -1,33 +1,33 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLanguage } from '../context/LanguageContext'
 import { compareMarkets, getDecisionOptions } from '../services/decisionService'
+import { rupees } from '../utils/money'
 import './Compare.css'
 
 // Guest selling-decision page (PRD v4.2 section 5). Every rule is decided by the API;
 // this page only collects inputs and shows the result in the PRD's top-to-bottom order.
+// Page text comes from the compare.* catalogue keys; the API's result messages, reasons
+// and assumptions stay in English as the PRD words them.
 
-const STATE_LABELS = {
-  RANKED: 'Ranked',
-  TOO_CLOSE: 'Too close to call',
-  NEEDS_INPUT: 'Needs input',
-  INSUFFICIENT_MARKETS: 'Not enough comparable markets',
-  NO_FRESH_DATA: 'No fresh prices',
-  SOURCE_ERROR: 'Data unavailable',
-  EMPTY: 'No records',
+const STATE_KEYS = {
+  RANKED: 'compare.stateRanked',
+  TOO_CLOSE: 'compare.stateTooClose',
+  NEEDS_INPUT: 'compare.stateNeedsInput',
+  INSUFFICIENT_MARKETS: 'compare.stateInsufficient',
+  NO_FRESH_DATA: 'compare.stateNoFresh',
+  SOURCE_ERROR: 'compare.stateSourceError',
+  EMPTY: 'compare.stateEmpty',
 }
 const STATE_TONE = { RANKED: 'good', TOO_CLOSE: 'warn', NEEDS_INPUT: 'warn' }
-const SOURCE_ERROR_MESSAGE = 'Could not retrieve data. Try again later.'
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const EMPTY_MARKET = { trip_cost: '', no_cost: false, commission_pct: '', loading: '', handling: '' }
 
-const wholeRupees = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 })
-const paise = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-
-const rs = (value) => (value === null || value === undefined ? '—' : `Rs ${wholeRupees.format(value)}`)
-const rsExact = (value) => (value === null || value === undefined ? '—' : `Rs ${paise.format(value)}`)
+const rs = (value) => rupees(value)
+const rsExact = (value) => rupees(value, { minDecimals: 2 })
 const blankToNull = (value) => (String(value).trim() === '' ? null : String(value).trim())
 
-function shortDate(iso) {
-  if (!iso) return 'date unknown'
+function shortDate(iso, t) {
+  if (!iso) return t('compare.dateUnknown')
   const [year, month, day] = iso.split('-').map(Number)
   return `${day} ${MONTHS[month - 1]} ${year}`
 }
@@ -36,11 +36,19 @@ function cropLabel(crop) {
   return crop.charAt(0).toUpperCase() + crop.slice(1)
 }
 
-function DataBadge({ data }) {
+// Distinguish "too many requests" and "no connection" from a data-source failure (MR-10).
+function requestFailure(error, t) {
+  const status = error.response?.status
+  if (status === 429) return error.response.data?.detail || t('compare.tooMany')
+  if (!error.response) return t('compare.offline')
+  return t('compare.sourceError')
+}
+
+function DataBadge({ data, t }) {
   if (!data?.label) return null
   return (
     <p className={`cmp-badge ${data.mode === 'sample' ? 'is-sample' : ''}`} role="status">
-      {data.mode === 'sample' ? 'Sample data — not reported prices. ' : ''}
+      {data.mode === 'sample' ? `${t('compare.sampleNotice')} ` : ''}
       {data.label}
     </p>
   )
@@ -74,39 +82,37 @@ function NumberField({ id, label, value, onChange, error, hint, step = 'any', mi
   )
 }
 
-function DecisionBox({ result, names }) {
+function DecisionBox({ result, names, t }) {
   const tone = STATE_TONE[result.state] || 'neutral'
   return (
     <section className={`cmp-decision tone-${tone}`} aria-live="polite">
-      <p className="cmp-state">{STATE_LABELS[result.state] || result.state}</p>
+      <p className="cmp-state">{STATE_KEYS[result.state] ? t(STATE_KEYS[result.state]) : result.state}</p>
       <p className="cmp-message">{result.message}</p>
       {result.state === 'RANKED' && (
-        <p className="cmp-sub">
-          Ahead by {rs(result.lead)}; markets closer than {rs(result.tie_band)} would be too close to call.
-        </p>
+        <p className="cmp-sub">{t('compare.rankedSub', [rs(result.lead), rs(result.tie_band)])}</p>
       )}
       {result.state === 'TOO_CLOSE' && (
         <p className="cmp-sub">
-          The difference is below {rs(result.tie_band)}, so no market is named as best. Order by estimate:{' '}
-          {result.cards.filter((c) => c.eligible).map((c) => names[c.market_id] || c.market_name).join(', ')}.
+          {t('compare.tooCloseSub', [
+            rs(result.tie_band),
+            result.cards.filter((c) => c.eligible).map((c) => names[c.market_id] || c.market_name).join(', '),
+          ])}
         </p>
       )}
     </section>
   )
 }
 
-function HarvestCover({ result, pickingEntered }) {
+function HarvestCover({ result, pickingEntered, t }) {
   const rows = result.cards.filter((c) => c.eligible && c.left_per_crate !== null && c.left_per_crate !== undefined)
   return (
     <section className="ui-card cmp-section">
       <div className="ui-card-head">
-        <h3>Harvest Cover Check (per 14 kg crate)</h3>
+        <h3>{t('compare.harvestTitle')}</h3>
       </div>
       <div className="ui-card-body">
-        {!pickingEntered && <p className="cmp-muted">Enter the picking cost per crate to see what each market leaves per crate.</p>}
-        {pickingEntered && rows.length === 0 && (
-          <p className="cmp-muted">Shown once at least one market has a usable price and a trip cost.</p>
-        )}
+        {!pickingEntered && <p className="cmp-muted">{t('compare.harvestNeedPicking')}</p>}
+        {pickingEntered && rows.length === 0 && <p className="cmp-muted">{t('compare.harvestNeedPrice')}</p>}
         {result.harvest_message && <p className="ui-alert ui-alert-warning">{result.harvest_message}</p>}
         {rows.length > 0 && (
           <ul className="cmp-cover-list">
@@ -114,9 +120,9 @@ function HarvestCover({ result, pickingEntered }) {
               <li key={c.market_id}>
                 <strong>{c.market_name}</strong>
                 <span>
-                  Left per crate: {rs(c.left_per_crate)} ({c.covers ? 'covers costs' : 'does not cover costs'})
+                  {t('compare.leftPerCrate', [rs(c.left_per_crate), t(c.covers ? 'compare.covers' : 'compare.doesNotCover')])}
                 </span>
-                <span>Price needed to cover costs: {rs(c.cover_price_per_crate)} per crate</span>
+                <span>{t('compare.coverPrice', [rs(c.cover_price_per_crate)])}</span>
               </li>
             ))}
           </ul>
@@ -126,67 +132,68 @@ function HarvestCover({ result, pickingEntered }) {
   )
 }
 
-function PriceLine({ card }) {
+function PriceLine({ card, t }) {
   const hasRange = card.min_price !== null && card.max_price !== null && !(card.min_price === card.price && card.max_price === card.price)
-  const range = hasRange ? ` (${wholeRupees.format(card.min_price)}–${wholeRupees.format(card.max_price)})` : ''
+  const range = hasRange ? ` (${rupees(card.min_price, { symbol: '' })}–${rupees(card.max_price, { symbol: '' })})` : ''
+  const price = card.price === null ? t('compare.notReported') : rs(card.price)
   return (
     <p className="cmp-price-line">
-      Modal {card.price === null ? 'not reported' : `Rs ${wholeRupees.format(card.price)}`}
-      {range} per {card.unit || 'unit not reported'}
+      {t('compare.modalLine', [price, range, card.unit || t('compare.unitNotReported')])}
     </p>
   )
 }
 
-function Provenance({ card }) {
+function Provenance({ card, t }) {
   return (
     <p className="cmp-provenance">
-      {card.market_type_label} · Source: {card.source || 'not reported'} · {shortDate(card.report_date)} ·{' '}
-      {card.freshness_text}
+      {card.market_type_label} · {t('compare.source')} {card.source || t('compare.notReported')} ·{' '}
+      {shortDate(card.report_date, t)} · {card.freshness_text}
     </p>
   )
 }
 
-function MarketCard({ card, isWinner }) {
+function MarketCard({ card, isWinner, t }) {
+  const trips = card.trips === 1 ? t('compare.oneTrip') : t('compare.trips', [card.trips])
   return (
     <article className={`ui-card cmp-market ${isWinner ? 'is-winner' : ''}`}>
       <div className="ui-card-body">
         <div className="cmp-market-head">
           <h4>{card.market_name}</h4>
-          {isWinner && <span className="ui-badge ui-badge-green">Estimated best</span>}
+          {isWinner && <span className="ui-badge ui-badge-green">{t('compare.estimatedBest')}</span>}
         </div>
-        <Provenance card={card} />
-        <PriceLine card={card} />
+        <Provenance card={card} t={t} />
+        <PriceLine card={card} t={t} />
         <dl className="cmp-figures">
-          <div><dt>Per kg</dt><dd>{rsExact(card.price_per_kg)}</dd></div>
-          <div><dt>Per crate</dt><dd>{rsExact(card.price_per_crate)}</dd></div>
-          <div><dt>Gross value</dt><dd>{rs(card.gross)}</dd></div>
+          <div><dt>{t('compare.perKg')}</dt><dd>{rsExact(card.price_per_kg)}</dd></div>
+          <div><dt>{t('compare.perCrate')}</dt><dd>{rsExact(card.price_per_crate)}</dd></div>
+          <div><dt>{t('compare.gross')}</dt><dd>{rs(card.gross)}</dd></div>
           <div>
-            <dt>Transport</dt>
-            <dd>{card.transport === null ? 'Trip cost needed' : `${rs(card.transport)} (${card.trips} trip${card.trips === 1 ? '' : 's'})`}</dd>
+            <dt>{t('compare.transport')}</dt>
+            <dd>{card.transport === null ? t('compare.tripNeeded') : `${rs(card.transport)} (${trips})`}</dd>
           </div>
-          <div><dt>Other selling costs</dt><dd>{rs(card.other)}</dd></div>
-          <div><dt>Load fill</dt><dd>{card.load_fill === null || card.load_fill === undefined ? '—' : `${Math.round(card.load_fill * 100)}%`}</dd></div>
-          <div className="cmp-estimate"><dt>Estimate after entered costs</dt><dd>{rs(card.estimate)}</dd></div>
+          <div><dt>{t('compare.otherCosts')}</dt><dd>{rs(card.other)}</dd></div>
+          <div><dt>{t('compare.loadFill')}</dt><dd>{card.load_fill === null || card.load_fill === undefined ? '—' : `${Math.round(card.load_fill * 100)}%`}</dd></div>
+          <div className="cmp-estimate"><dt>{t('compare.estimate')}</dt><dd>{rs(card.estimate)}</dd></div>
         </dl>
       </div>
     </article>
   )
 }
 
-function Excluded({ cards }) {
+function Excluded({ cards, t }) {
   if (cards.length === 0) return null
   return (
     <section className="ui-card cmp-section">
       <div className="ui-card-head">
-        <h3>Not ranked</h3>
+        <h3>{t('compare.notRanked')}</h3>
       </div>
       <div className="ui-card-body">
         <ul className="cmp-excluded">
           {cards.map((c) => (
             <li key={c.market_id}>
               <strong>{c.market_name}</strong>: {c.reason_text}
-              <Provenance card={c} />
-              <PriceLine card={c} />
+              <Provenance card={c} t={t} />
+              <PriceLine card={c} t={t} />
             </li>
           ))}
         </ul>
@@ -195,20 +202,21 @@ function Excluded({ cards }) {
   )
 }
 
-function Assumptions({ result }) {
+function Assumptions({ result, t }) {
   return (
     <section className="cmp-assumptions">
-      <h3>Assumptions</h3>
+      <h3>{t('compare.assumptions')}</h3>
       <ul>
         {result.assumptions.map((line) => <li key={line}>{line}</li>)}
-        {result.not_included.length > 0 && <li>Costs not included: {result.not_included.join(', ')}.</li>}
-        <li>Prices judged against {shortDate(result.as_of)}.</li>
+        {result.not_included.length > 0 && <li>{t('compare.notIncluded', [result.not_included.join(', ')])}</li>}
+        <li>{t('compare.judgedAgainst', [shortDate(result.as_of, t)])}</li>
       </ul>
     </section>
   )
 }
 
 export default function Compare() {
+  const { t } = useLanguage()
   const [options, setOptions] = useState(null)
   const [loadError, setLoadError] = useState('')
   const [regionId, setRegionId] = useState('')
@@ -226,6 +234,15 @@ export default function Compare() {
   const [submitting, setSubmitting] = useState(false)
   const resultRef = useRef(null)
 
+  useEffect(() => {
+    document.title = t('compare.pageTitle')
+  }, [t])
+
+  // A result only describes the inputs it was computed from: drop it as soon as any input changes.
+  useEffect(() => {
+    setResult(null)
+  }, [regionId, crop, selected, perMarket, quantity, unit, capacity, picking, packing])
+
   const loadOptions = () => {
     setLoadError('')
     getDecisionOptions()
@@ -237,7 +254,7 @@ export default function Compare() {
           setCrop(region.crops[0]?.crop || '')
         }
       })
-      .catch(() => setLoadError(SOURCE_ERROR_MESSAGE))
+      .catch((error) => setLoadError(requestFailure(error, t)))
   }
   useEffect(loadOptions, [])
 
@@ -294,13 +311,11 @@ export default function Compare() {
       setResult(null)
       if (error.response?.status === 422 && detail?.errors) {
         setErrors(detail.errors)
-        setRequestError(detail.message || 'Check the highlighted fields.')
+        setRequestError(detail.message || t('compare.checkFields'))
       } else if (error.response?.status === 422) {
-        setRequestError('Check that every number is entered correctly.')
-      } else if (error.response?.status === 429) {
-        setRequestError(detail || 'Too many requests. Please wait a minute and try again.')
+        setRequestError(t('compare.checkNumbers'))
       } else {
-        setRequestError(SOURCE_ERROR_MESSAGE)
+        setRequestError(requestFailure(error, t))
       }
     } finally {
       setSubmitting(false)
@@ -314,14 +329,14 @@ export default function Compare() {
     <div className="cmp-page">
       <header className="cmp-header">
         <p className="cmp-brand">SmartAg Ops Advisor</p>
-        <h1>Which market leaves you the most per crate?</h1>
-        <DataBadge data={result?.data?.label ? result.data : options?.data} />
+        <h1>{t('compare.heading')}</h1>
+        <DataBadge data={result?.data?.label ? result.data : options?.data} t={t} />
       </header>
 
       {loadError && (
         <div className="ui-alert ui-alert-error cmp-load-error" role="alert">
           {loadError}{' '}
-          <button type="button" className="ui-btn ui-btn-sm ui-btn-outline" onClick={loadOptions}>Try again</button>
+          <button type="button" className="ui-btn ui-btn-sm ui-btn-outline" onClick={loadOptions}>{t('compare.tryAgain')}</button>
         </div>
       )}
       {!options && !loadError && <div className="ui-loading"><span className="ui-spinner" /></div>}
@@ -331,13 +346,13 @@ export default function Compare() {
           <div className="ui-card-body cmp-form">
             <div className="cmp-row">
               <div className="ui-field">
-                <label htmlFor="cmp-region">Place</label>
+                <label htmlFor="cmp-region">{t('compare.place')}</label>
                 <select id="cmp-region" className="ui-input" value={regionId} onChange={(e) => { setRegionId(e.target.value); setSelected([]) }}>
                   {options.regions.map((r) => <option key={r.id} value={r.id}>{r.name}, {r.state}</option>)}
                 </select>
               </div>
               <div className="ui-field">
-                <label htmlFor="cmp-crop">Crop</label>
+                <label htmlFor="cmp-crop">{t('compare.crop')}</label>
                 <select id="cmp-crop" className="ui-input" value={crop} onChange={(e) => { setCrop(e.target.value); setSelected([]) }}>
                   {(region?.crops || []).map((c) => <option key={c.crop} value={c.crop}>{cropLabel(c.crop)}</option>)}
                 </select>
@@ -346,7 +361,7 @@ export default function Compare() {
             </div>
 
             <fieldset className="cmp-fieldset">
-              <legend>Markets to compare (choose 2 to {maxMarkets})</legend>
+              <legend>{t('compare.marketsLegend', [maxMarkets])}</legend>
               <div className="cmp-market-picks">
                 {markets.map((m) => (
                   <label key={m.id} className={`cmp-pick ${selected.includes(m.id) ? 'is-on' : ''}`}>
@@ -365,32 +380,32 @@ export default function Compare() {
             </fieldset>
 
             <div className="cmp-row">
-              <NumberField id="cmp-qty" label="Quantity" value={quantity} onChange={setQuantity} error={errors.quantity} />
+              <NumberField id="cmp-qty" label={t('compare.quantity')} value={quantity} onChange={setQuantity} error={errors.quantity} />
               <div className="ui-field">
-                <label htmlFor="cmp-unit">Unit</label>
+                <label htmlFor="cmp-unit">{t('compare.unit')}</label>
                 <select id="cmp-unit" className="ui-input" value={unit} onChange={(e) => setUnit(e.target.value)}>
-                  {options.units.map((u) => <option key={u} value={u}>{u === 'crate' ? 'crate (14 kg)' : u}</option>)}
+                  {options.units.map((u) => <option key={u} value={u}>{u === 'crate' ? t('compare.crateUnit') : u}</option>)}
                 </select>
                 <FieldError message={errors.unit} />
               </div>
-              <NumberField id="cmp-cap" label="Vehicle capacity" suffix="kg" value={capacity} onChange={setCapacity} error={errors.vehicle_capacity_kg} />
+              <NumberField id="cmp-cap" label={t('compare.capacity')} suffix="kg" value={capacity} onChange={setCapacity} error={errors.vehicle_capacity_kg} />
             </div>
 
             <div className="cmp-row">
-              <NumberField id="cmp-pick" label="Picking per crate (optional)" suffix="Rs" value={picking} onChange={setPicking} error={errors.picking_per_crate} />
-              <NumberField id="cmp-pack" label="Packing per crate (optional)" suffix="Rs" value={packing} onChange={setPacking} error={errors.packing_per_crate} />
+              <NumberField id="cmp-pick" label={t('compare.picking')} suffix="Rs" value={picking} onChange={setPicking} error={errors.picking_per_crate} />
+              <NumberField id="cmp-pack" label={t('compare.packing')} suffix="Rs" value={packing} onChange={setPacking} error={errors.packing_per_crate} />
             </div>
 
             {selected.map((id, i) => {
               const m = perMarket[id] || EMPTY_MARKET
               return (
                 <fieldset key={id} className="cmp-fieldset cmp-market-costs">
-                  <legend>Costs for {names[id] || id}</legend>
+                  <legend>{t('compare.costsFor', [names[id] || id])}</legend>
                   <div className="cmp-row">
                     <div className="ui-field">
                       <NumberField
                         id={`cmp-trip-${i}`}
-                        label="Trip cost (one trip)"
+                        label={t('compare.tripCost')}
                         suffix="Rs"
                         value={m.no_cost ? '' : m.trip_cost}
                         onChange={(v) => setMarketField(id, 'trip_cost', v)}
@@ -398,12 +413,12 @@ export default function Compare() {
                       />
                       <label className="cmp-check">
                         <input type="checkbox" checked={m.no_cost} onChange={(e) => setMarketField(id, 'no_cost', e.target.checked)} />
-                        No transport cost
+                        {t('compare.noTransportCost')}
                       </label>
                     </div>
-                    <NumberField id={`cmp-comm-${i}`} label="Commission (optional)" suffix="%" value={m.commission_pct} onChange={(v) => setMarketField(id, 'commission_pct', v)} error={marketError(id, 'commission_pct')} />
-                    <NumberField id={`cmp-load-${i}`} label="Loading (optional)" suffix="Rs" value={m.loading} onChange={(v) => setMarketField(id, 'loading', v)} error={marketError(id, 'loading')} />
-                    <NumberField id={`cmp-hand-${i}`} label="Handling (optional)" suffix="Rs" value={m.handling} onChange={(v) => setMarketField(id, 'handling', v)} error={marketError(id, 'handling')} />
+                    <NumberField id={`cmp-comm-${i}`} label={t('compare.commission')} suffix="%" value={m.commission_pct} onChange={(v) => setMarketField(id, 'commission_pct', v)} error={marketError(id, 'commission_pct')} />
+                    <NumberField id={`cmp-load-${i}`} label={t('compare.loading')} suffix="Rs" value={m.loading} onChange={(v) => setMarketField(id, 'loading', v)} error={marketError(id, 'loading')} />
+                    <NumberField id={`cmp-hand-${i}`} label={t('compare.handling')} suffix="Rs" value={m.handling} onChange={(v) => setMarketField(id, 'handling', v)} error={marketError(id, 'handling')} />
                   </div>
                   <FieldError message={errors[`markets[${i}].market_id`]} />
                 </fieldset>
@@ -412,7 +427,7 @@ export default function Compare() {
 
             {requestError && <p className="ui-alert ui-alert-error" role="alert">{requestError}</p>}
             <button type="submit" className="ui-btn ui-btn-primary ui-btn-block" disabled={submitting}>
-              {submitting ? 'Comparing…' : 'Compare markets'}
+              {submitting ? t('compare.comparing') : t('compare.submit')}
             </button>
           </div>
         </form>
@@ -420,15 +435,15 @@ export default function Compare() {
 
       {result && (
         <div ref={resultRef} className="cmp-result">
-          <DecisionBox result={result} names={names} />
-          <HarvestCover result={result} pickingEntered={blankToNull(picking) !== null} />
+          <DecisionBox result={result} names={names} t={t} />
+          <HarvestCover result={result} pickingEntered={blankToNull(picking) !== null} t={t} />
           {eligible.length > 0 && (
             <section className="cmp-cards">
-              {eligible.map((c) => <MarketCard key={c.market_id} card={c} isWinner={c.market_id === result.winner_market_id} />)}
+              {eligible.map((c) => <MarketCard key={c.market_id} card={c} isWinner={c.market_id === result.winner_market_id} t={t} />)}
             </section>
           )}
-          <Excluded cards={excluded} />
-          <Assumptions result={result} />
+          <Excluded cards={excluded} t={t} />
+          <Assumptions result={result} t={t} />
         </div>
       )}
     </div>

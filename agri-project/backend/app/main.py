@@ -88,7 +88,10 @@ try:
 except Exception as e:
     print(f"Database initialization notice: {e}")
 
-if settings.DECISION_SEED_ON_START and settings.DECISION_DATA_MODE.strip().lower() == "sample":
+_seed_on_start = settings.DECISION_SEED_ON_START
+if _seed_on_start is None:
+    _seed_on_start = not security_policy.is_production()
+if _seed_on_start and settings.DECISION_DATA_MODE.strip().lower() == "sample":
     try:
         from app.core.database import SessionLocal
         from app.services.decision_seed import seed_sample

@@ -3,10 +3,10 @@ import Icon from './Icons'
 import { useLanguage } from '../context/LanguageContext'
 import { getMandiFilters, getMandiPrices } from '../services/mandiService'
 import { formatIndiaDate } from '../utils/dateTime'
+import { rupees as formatRupees } from '../utils/money'
 
 const PAGE_SIZE = 50
-const rupees = (value) =>
-  value === null || value === undefined ? '—' : `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+const rupees = (value) => formatRupees(value, { symbol: '₹', maxDecimals: 2 })
 const perKg = (quintal) => (quintal === null || quintal === undefined ? null : quintal / 100)
 const dayLabel = (iso) => (iso ? formatIndiaDate(`${iso}T00:00:00+05:30`, { day: 'numeric', month: 'short', year: 'numeric' }) : '—')
 

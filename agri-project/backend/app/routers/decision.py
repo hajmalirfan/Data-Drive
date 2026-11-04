@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.core.database import get_db
@@ -29,6 +29,7 @@ guest_scheme = HTTPBearer(auto_error=False)
 IST = timezone(timedelta(hours=5, minutes=30))  # India has no daylight saving
 GUEST_PURPOSE = "guest"
 MAX_MARKETS = 3
+SAMPLE_AS_OF = date(2026, 10, 25)  # the PRD demo date the sample seed is dated against
 
 MARKET_TYPE_LABELS = {"wholesale": "Wholesale", "uzhavar_sandhai": "Uzhavar Sandhai", "unknown": "Type unknown"}
 REASON_LABELS = {
@@ -48,13 +49,17 @@ REASON_LABELS = {
 # ---- configuration and access ----------------------------------------------
 def decision_config() -> dict:
     """Engine config from settings; a dependency so tests can move the as-of date."""
-    as_of = date.fromisoformat(settings.DECISION_AS_OF) if settings.DECISION_AS_OF else datetime.now(IST).date()
+    data_mode = settings.DECISION_DATA_MODE.strip().lower()
+    if settings.DECISION_AS_OF:
+        as_of = date.fromisoformat(settings.DECISION_AS_OF)
+    else:
+        as_of = datetime.now(IST).date() if data_mode == "snapshot" else SAMPLE_AS_OF
     return {
         "as_of": as_of,
         "freshness_days": settings.DECISION_FRESHNESS_DAYS,
         "tie_band_floor": Decimal(str(settings.DECISION_TIE_BAND_FLOOR)),
         "tie_band_pct": Decimal(str(settings.DECISION_TIE_BAND_PCT)),
-        "data_mode": settings.DECISION_DATA_MODE.strip().lower(),
+        "data_mode": data_mode,
     }
 
 
@@ -64,7 +69,7 @@ def require_guest(credentials: HTTPAuthorizationCredentials | None = Depends(gue
         raise HTTPException(status_code=401, detail="Guest session expired. Reload the page.")
 
 
-@router.post("/api/auth/guest", dependencies=[Depends(rate_limit("guest_token", 30, 3600))])
+@router.post("/api/auth/guest", dependencies=[Depends(rate_limit("guest_token", 300, 3600))])
 def guest_token():
     """Demo token. Its 'purpose' claim makes every signed-in endpoint reject it."""
     minutes = settings.GUEST_TOKEN_MINUTES
@@ -118,6 +123,7 @@ def latest_records(db: Session, markets: list[DecisionMarket], crop: str, config
     by_id = {m.id: m for m in markets}
     rows = (
         db.query(PriceRecord)
+        .options(joinedload(PriceRecord.run))
         .filter(PriceRecord.market_id.in_(by_id), PriceRecord.is_sample.is_(wants_sample(config)))
         .all()
     )
@@ -218,7 +224,7 @@ def plain(value):
 
 
 def assumptions(config: dict) -> list[str]:
-    pct = config["tie_band_pct"].normalize()
+    pct = format(config["tie_band_pct"].normalize(), "f")
     return [
         "A reported price is a market benchmark, not a buyer's offer. Verify before travel.",
         "Estimate after the costs you entered. Costs left blank are not included.",

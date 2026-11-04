@@ -16,12 +16,12 @@ SmartAg Ops Advisor is a full-stack agriculture operations platform for comparin
 
 A tomato grower enters a batch and its costs and sees, per 14 kg crate, which comparable market leaves the most money and whether the batch covers picking and selling costs. When the data cannot support a ranking, the page says why. No sign-in is needed: the page gets a short-lived guest token that works only for the comparison endpoints.
 
-Run it locally (about 5 minutes; SQLite, no Postgres needed):
+Run it locally (about 5 minutes; SQLite, no Postgres needed). Use **Python 3.12**: the pinned `pydantic==2.10.4` has no wheels for Python 3.13 or newer, so `pip install` fails there. On Windows, install 3.12 from python.org and create the venv with `py -3.12`.
 
 ```powershell
 # Backend (terminal 1)
 Set-Location agri-project\backend
-python -m venv .venv
+py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 $env:DATABASE_URL = "sqlite:///./local-demo.db"
@@ -37,7 +37,7 @@ $env:VITE_DEMO_MODE = "true"
 npm run dev
 ```
 
-Open http://localhost:5173. On first start the backend loads the eight labelled PRD sample prices (Dindigul district, 24 Oct 2026), so every screen shows "Sample data as of 25 Oct 2026". To load them into another database by hand, run `python -m scripts.seed_decision` from `agri-project/backend`.
+Open http://localhost:5173. In development the backend loads the eight labelled PRD sample prices (Dindigul district, 24 Oct 2026) on first start, so every screen shows "Sample data as of 25 Oct 2026". Production (`ENVIRONMENT=production`) does not seed at startup: run `python -m scripts.seed_decision` from `agri-project/backend` once, or set `DECISION_SEED_ON_START=true`.
 
 Without `VITE_DEMO_MODE=true` the full application runs as before, and the comparison is also available at `/compare`.
 
@@ -52,7 +52,7 @@ Without `VITE_DEMO_MODE=true` the full application runs as before, and the compa
 
 API: `POST /api/auth/guest`, `GET /api/decision/options`, `POST /api/decision/compare`. All calculation rules are in `backend/app/services/decision_engine.py`. Tests: `python -m pytest -v` in `agri-project/backend` (acceptance tests AT-01 to AT-18 plus API tests for every result state).
 
-Settings (backend `.env`): `DECISION_DATA_MODE` (`sample` | `snapshot`), `DECISION_AS_OF` (the date freshness is judged against; empty means today in IST), `DECISION_FRESHNESS_DAYS`, `DECISION_TIE_BAND_FLOOR`, `DECISION_TIE_BAND_PCT`, `DECISION_SEED_ON_START`, `GUEST_TOKEN_MINUTES`.
+Settings (backend `.env`): `DECISION_DATA_MODE` (`sample` | `snapshot`), `DECISION_AS_OF` (the date freshness is judged against; empty means 25 Oct 2026 in sample mode and today in IST in snapshot mode), `DECISION_FRESHNESS_DAYS`, `DECISION_TIE_BAND_FLOOR`, `DECISION_TIE_BAND_PCT`, `DECISION_SEED_ON_START`, `GUEST_TOKEN_MINUTES`.
 
 ## Tech Stack
 
@@ -86,7 +86,7 @@ agri-project/
 
 ## Prerequisites
 
-- Python 3.12+
+- Python 3.12 (3.13 and newer cannot install the pinned `pydantic==2.10.4`)
 - Node.js 18+
 - PostgreSQL 14+
 
